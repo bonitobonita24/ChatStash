@@ -2,7 +2,7 @@
 
 - Conversation ID: 69a30943-3324-8324-9dd5-cb2b5da9dd46
 - Title: Jerlan Projects - Mega Prompt Optimization Tips
-- Captured: 2026-03-01T07:24:06.113Z
+- Captured: 2026-03-01T07:27:08.714Z
 - URL: https://chatgpt.com/g/g-p-698ace27fcb08191853e12827657b08e-jerlan-projects/c/69a30943-3324-8324-9dd5-cb2b5da9dd46
 
 ---
@@ -3503,4 +3503,124 @@ What I recommend for you
 Use JSON config for Continue in WSL. It’s the most stable and avoids this entire “Windows schema file URI” problem.
 
 If you want, tell me: are you configuring Continue or Cline right now? (Both can use Ollama, but their config locations differ.)
+
+## User
+
+ok make a KSON config for Continue in WSL. I'm also using Cline right now
+
+## Assistant
+
+Got it. Here’s a clean Continue JSON config that works in WSL, plus the Cline setup for Ollama.
+
+1) Continue (WSL) — JSON config
+Create this file in WSL:
+Bash
+mkdir -p ~/.continue
+nano ~/.continue/config.json
+
+Paste exactly:
+
+JSON
+{
+  "models": [
+    {
+      "title": "Local Qwen 2.5 Coder 7B",
+      "provider": "ollama",
+      "model": "qwen2.5-coder:7b",
+      "apiBase": "http://127.0.0.1:11434"
+    }
+  ],
+  "defaultModel": "Local Qwen 2.5 Coder 7B"
+}
+
+Then:
+
+Fully restart VS Code (close all windows, reopen your WSL workspace).
+
+Open Continue panel → select Local Qwen 2.5 Coder 7B.
+
+Quick test (WSL terminal):
+Bash
+curl http://127.0.0.1:11434/api/tags
+
+If you get JSON back, Ollama is reachable.
+
+If Ollama isn’t running:
+
+Bash
+ollama serve
+2) Cline — connect it to Ollama (WSL)
+
+Cline doesn’t use the same file-based config like Continue. You set it in the UI.
+
+In VS Code:
+
+Open Cline sidebar
+
+Go to Settings (gear icon)
+
+Set Provider to: OpenAI Compatible (or “Custom” depending on your version)
+
+Set Base URL to:
+
+Code
+http://127.0.0.1:11434/v1
+
+Set Model to:
+
+Code
+qwen2.5-coder:7b
+
+API Key:
+
+Put anything like ollama (Ollama ignores it, but some UIs require a non-empty string)
+
+Why /v1?
+
+Cline typically expects an OpenAI-compatible endpoint. Ollama supports that at:
+
+http://localhost:11434/v1
+
+3) Recommended: run Ollama as a background service in WSL
+
+So you don’t have to keep ollama serve open.
+
+Try:
+
+Bash
+sudo systemctl enable ollama
+sudo systemctl start ollama
+
+Check:
+
+Bash
+systemctl status ollama --no-pager
+
+If systemd isn’t enabled in your WSL, tell me and I’ll give you the non-systemd background method.
+
+4) If Cline can’t connect (common WSL gotcha)
+
+Use 127.0.0.1 not localhost in configs. Some extensions resolve localhost weirdly across remote contexts.
+
+So always prefer:
+
+http://127.0.0.1:11434
+
+http://127.0.0.1:11434/v1
+
+Quick confirmation checklist
+
+In WSL terminal:
+
+Bash
+ollama list
+curl http://127.0.0.1:11434/api/tags
+
+If both succeed:
+
+Continue should show your model
+
+Cline should connect with base URL /v1
+
+If you tell me what you see inside Cline settings (the exact provider options list), I can map the exact clicks because Cline UI labels vary by version.
 
