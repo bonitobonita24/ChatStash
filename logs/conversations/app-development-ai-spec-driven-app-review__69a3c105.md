@@ -2,7 +2,7 @@
 
 - Conversation ID: 69a3c105-6130-839f-bde4-4186ad5e59c0
 - Title: App Development - AI Spec-Driven App Review
-- Captured: 2026-03-01T10:49:01.622Z
+- Captured: 2026-03-01T10:52:04.353Z
 - URL: https://chatgpt.com/g/g-p-69a3c28d968c8191ac141b91a84da50a-app-development/c/69a3c105-6130-839f-bde4-4186ad5e59c0
 
 ---
@@ -2347,4 +2347,397 @@ If you want, I can now:
 🏢 Show how to turn this into a multi-app internal platform factory
 
 What direction do you want next?
+
+## User
+
+- ok so to avoid my confusion. i just want to make this thing clear from now on.
+- the only file that I will manually enter the app features and how it will work is the PRODUCT.md
+- the INPUTS.yml contents will be AI generated based
+- domain name or base URL will be ask in questions by copilot
+- if all my understanding are all correct then provide me another Full Mega Phase-based Spec Driven AI Prompt including the product description from start to finish again
+- Please make the files that needs manual encoding or natural language input just like PRODUCT.md be at the beginning of the instruction to fill up first or if the file that needs to be filled up by human needs to be an AI generated, then can you please make it on top priority first so we can do first all the files that needs manual fill ups then just executable or command prompts to run and continuous runnable prompt for changes made.
+
+## Assistant
+
+Perfect.
+Your understanding is correct. Let’s lock it in clearly:
+
+✅ FINAL CLARITY (NO MORE CONFUSION)
+
+From now on:
+
+1️⃣ You manually write ONLY:
+
+docs/PRODUCT.md → full product description, features, workflows
+
+(optional) edit small business text updates later
+
+2️⃣ AI generates:
+
+inputs.yml
+
+inputs.schema.json
+
+All code
+
+All infrastructure
+
+All CI
+
+All deployment files
+
+All security scaffolding
+
+3️⃣ Copilot will ask you for:
+
+Domain name / base URL
+
+Environments (dev/stage/prod)
+
+Auth details
+
+Multi-tenant choice
+
+Observability exporters
+
+Production deployment decisions
+
+4️⃣ You NEVER manually edit:
+
+Prisma schema directly (unless instructed)
+
+Nest scaffolding manually
+
+Compose files manually
+
+K8s files manually
+
+Everything flows from:
+
+Code
+PRODUCT.md → AI questions → inputs.yml → Generated platform
+
+That’s the contract.
+
+Now I will give you:
+
+🔥 FULL MEGA PHASE-BASED SPEC-DRIVEN AI PLAYBOOK (FINAL VERSION)
+
+Organized so that:
+
+ALL manual files are first
+
+Then AI generation
+
+Then commands
+
+Then update flow
+
+Clean, repeatable, no confusion
+
+🟦 PHASE 0 — REPO BOOTSTRAP (ONE TIME)
+STEP 1 — Create New Repo
+
+Create GitHub repo
+Clone locally
+Open in VS Code
+
+STEP 2 — Create ONLY These Files Manually
+1️⃣ .gitignore
+gitignore
+node_modules
+dist
+.next
+.turbo
+.env
+.env.*
+coverage
+*.log
+.DS_Store
+*.tsbuildinfo
+2️⃣ .nvmrc
+Code
+20
+3️⃣ package.json (root bootstrap)
+JSON
+{
+  "name": "spec-driven-platform",
+  "private": true,
+  "packageManager": "pnpm@9.12.0",
+  "engines": { "node": ">=20" }
+}
+4️⃣ .devcontainer/devcontainer.json
+
+(copy exact V1 version provided earlier)
+
+5️⃣ .devcontainer/Dockerfile
+
+(copy exact V1 version provided earlier)
+
+6️⃣ project.memory.md
+
+(copy V3 baseline from previous message)
+
+🟦 PHASE 1 — WRITE YOUR PRODUCT (ONLY HUMAN INPUT PHASE)
+🔴 THIS IS WHERE YOU DEFINE YOUR APP
+
+Create:
+
+Code
+docs/PRODUCT.md
+Template (fill manually)
+Markdown
+# Product Definition
+
+## App Name
+
+## Purpose
+
+## Target Users
+
+## Core Entities
+
+## User Roles
+
+## Main Workflows (step-by-step user flows)
+
+## Realtime Features
+
+## Background Jobs
+
+## Storage Requirements
+
+## Data Sensitivity (PII?)
+
+## Tenancy Model
+(single or multi — if unsure say undecided)
+
+## Environments Needed
+(dev / stage / prod)
+
+## Domain Expectations
+(leave blank if undecided)
+
+⚠️ This is the ONLY file where you manually describe how the app works.
+
+Take your time here.
+
+🟦 PHASE 2 — SPEC DISCOVERY (COPILOT CHAT)
+
+Open Devcontainer.
+
+Open Copilot Chat.
+
+Paste:
+
+Code
+We are building an app using Spec-Driven Platform v3.
+
+Here is the PRODUCT definition:
+
+<paste PRODUCT.md>
+
+1) Ask structured questions to clarify all missing technical decisions.
+2) Ask about domain/base URL.
+3) Ask about tenancy strategy.
+4) Ask about observability exporters.
+5) Ask about security constraints.
+6) Ask about deployment preference (compose default; k8s scaffold disabled).
+
+Do NOT generate files yet.
+Only ask structured questions.
+
+Answer everything.
+
+Now paste:
+
+Code
+Generate:
+
+1) inputs.yml (version 3)
+2) inputs.schema.json (strict JSON schema with conditionals)
+
+Ensure:
+- Tenancy upgrade path supported
+- Compose is default deployment
+- Kubernetes scaffold enabled but disabled by default
+- Multi-tenant toggle available
+- All security and observability baselines included
+
+Output only YAML and JSON.
+
+Copy both files into repo root.
+
+🟦 PHASE 3 — PLATFORM GENERATION
+
+Paste into Copilot:
+
+Code
+Generate full platform scaffold from:
+
+- inputs.yml
+- project.memory.md
+
+Follow DevOps + SRE Hardening v3 rules.
+
+Requirements:
+- Monorepo (pnpm + turbo)
+- apps/web (Next.js App Router)
+- apps/api (NestJS)
+- Prisma
+- BullMQ
+- MinIO
+- Keycloak
+- OpenTelemetry scaffold
+- Prometheus /metrics
+- Health endpoints
+- Structured logging
+- Strict validation
+- RBAC guards
+- Tenant context scaffold
+- Compose dev/stage/prod
+- K8s scaffold (inactive)
+- CI pipeline
+- tools/validate-inputs.mjs
+- tools/check-env.mjs
+- tools/hydration-lint.mjs
+
+Do NOT require Docker inside devcontainer.
+🟦 PHASE 4 — INSTALL & VALIDATE
+
+Inside devcontainer:
+
+Bash
+pnpm install
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+pnpm tools:validate-inputs
+
+Fix errors if any.
+
+🟦 PHASE 5 — START INFRA (HOST TERMINAL)
+
+Dev environment:
+
+Bash
+docker compose -f deploy/compose/dev/docker-compose.yml up -d
+
+Stage:
+
+Bash
+docker compose -f deploy/compose/stage/docker-compose.yml up -d
+
+Prod:
+
+Bash
+docker compose -f deploy/compose/prod/docker-compose.yml up -d
+
+Compose remains default at all times.
+
+🟦 PHASE 6 — FUTURE FEATURE CHANGES
+
+If you update PRODUCT.md:
+
+Paste into Copilot:
+
+Code
+PRODUCT UPDATE:
+
+<paste updated section>
+
+Ask clarifying questions.
+Do NOT generate files yet.
+
+Then:
+
+Code
+Generate updated inputs.yml diff.
+Modify only impacted modules.
+Preserve platform baselines.
+🟦 PHASE 7 — MULTI-TENANT UPGRADE (LATER)
+
+If originally single tenant and later upgrade:
+
+Edit:
+
+YAML
+tenancy:
+  mode: "multi"
+
+Then run:
+
+Code
+pnpm tools:validate-inputs
+
+Then ask Copilot:
+
+Code
+Upgrade platform from single-tenant to multi-tenant.
+
+Modify:
+- Prisma schema
+- Tenant middleware
+- RBAC mapping
+- Compose env variables
+- Keycloak config
+
+Do NOT regenerate entire repo.
+🟦 PHASE 8 — KUBERNETES ACTIVATION (FUTURE)
+
+When ready:
+
+Edit:
+
+YAML
+deploy:
+  k8s:
+    enabled: true
+
+Then:
+
+Code
+pnpm tools:validate-inputs
+
+Then:
+
+Code
+Generate production-ready k8s manifests from scaffold.
+Use kustomize.
+Preserve compose setup.
+
+Compose still remains usable.
+
+🧠 FINAL STRUCTURE OF TRUTH
+File	Who Writes
+PRODUCT.md	YOU
+inputs.yml	AI
+inputs.schema.json	AI
+Code	AI
+Compose	AI
+K8s scaffold	AI
+🔥 SUMMARY
+
+From now on:
+
+You only think about product in PRODUCT.md.
+
+Everything else is systemized.
+
+No confusion.
+No mixing concerns.
+No manual drift.
+
+If you'd like, next I can give you:
+
+🧠 A strict PRODUCT.md template optimized for AI accuracy
+
+🏢 A multi-app platform factory setup (generate many apps from one platform repo)
+
+📊 An SLO / SLA framework integrated into inputs.yml
+
+🔒 A compliance-ready extension (SOC2 / ISO groundwork)
+
+Choose your next upgrade.
 
