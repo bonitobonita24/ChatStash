@@ -2,7 +2,7 @@
 
 - Conversation ID: 69a30943-3324-8324-9dd5-cb2b5da9dd46
 - Title: Jerlan Projects - Mega Prompt Optimization Tips
-- Captured: 2026-03-01T06:56:44.643Z
+- Captured: 2026-03-01T06:59:47.225Z
 - URL: https://chatgpt.com/g/g-p-698ace27fcb08191853e12827657b08e-jerlan-projects/c/69a30943-3324-8324-9dd5-cb2b5da9dd46
 
 ---
@@ -2972,4 +2972,134 @@ Are you running ollama serve?
 Are you inside WSL or Windows terminal?
 
 And I’ll debug it precisely.
+
+## User
+
+ok but i tried to bring back the previously saved script there and now it has an underline red on the word name. i think its an invalid word. i uploaded the screenshot here
+
+## Assistant
+
+Good — this screenshot helps a lot.
+
+You’re using:
+
+Code
+.continue/config.yaml
+
+And the red underline is because your YAML structure is slightly wrong for Continue’s current schema.
+
+The problem is not the model.
+It’s the top-level structure.
+
+✅ Correct Continue config.yaml (FULL WORKING VERSION)
+
+Replace your entire .continue/config.yaml with this:
+
+YAML
+name: Local Config
+version: 1.0.0
+schema: v1
+
+models:
+  - name: Local Qwen 2.5 Coder 7B
+    provider: ollama
+    model: qwen2.5-coder:7b
+    apiBase: http://localhost:11434
+
+defaultModel: Local Qwen 2.5 Coder 7B
+
+Important differences:
+
+provider: ollama → no quotes needed
+
+apiBase must be included
+
+defaultModel must match the name
+
+Indentation must be exactly 2 spaces
+
+🔍 Why It Was Red
+
+Continue validates against a schema file inside the extension.
+
+The red underline:
+
+Code
+Problems loading reference ...
+
+Usually means:
+
+Schema not resolved
+
+YAML structure mismatch
+
+Missing required field (defaultModel)
+
+It is not actually about the word name.
+
+✅ After Fixing
+
+Save file
+
+Restart VS Code completely
+
+Make sure Ollama is running inside WSL:
+
+Bash
+ollama serve
+
+Test connection:
+
+Bash
+curl http://localhost:11434/api/tags
+⚠ Important (Very Common WSL Issue)
+
+You are editing:
+
+Code
+C:\Users\jerla\.continue\config.yaml
+
+But you said you run VS Code in WSL.
+
+If VS Code is attached to WSL, Continue expects config inside the WSL filesystem, not Windows.
+
+Better location:
+
+Code
+/home/<your-user>/.continue/config.yaml
+
+Inside WSL terminal:
+
+Bash
+mkdir -p ~/.continue
+nano ~/.continue/config.yaml
+
+Paste config there instead.
+
+This avoids Windows ↔ WSL networking mismatch.
+
+🧠 Quick Check
+
+Run inside WSL:
+
+Bash
+echo $HOME
+
+Then place config under:
+
+Code
+$HOME/.continue/config.yaml
+If It Still Shows Red
+
+Tell me:
+
+Are you in a WSL window (bottom left shows “WSL: Ubuntu”)?
+
+Does ollama list show the model?
+
+What happens when you click Continue and select the model?
+
+We’ll debug precisely.
+
+You’re very close — this is just a config path + schema mismatch issue.
 
