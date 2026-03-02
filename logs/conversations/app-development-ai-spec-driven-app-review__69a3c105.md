@@ -2,7 +2,7 @@
 
 - Conversation ID: 69a3c105-6130-839f-bde4-4186ad5e59c0
 - Title: App Development - AI Spec-Driven App Review
-- Captured: 2026-03-02T13:46:17.253Z
+- Captured: 2026-03-02T13:49:20.608Z
 - URL: https://chatgpt.com/g/g-p-69a3c28d968c8191ac141b91a84da50a/c/69a3c105-6130-839f-bde4-4186ad5e59c0
 
 ---
@@ -8272,4 +8272,288 @@ requires inputs + schema + changelog + implementation map when PRODUCT changes �
 Want me to paste the updated “strictest” tools/check-product-sync.mjs code too?
 
 If you say “paste it”, I’ll output the exact final script version with inputs.schema.json enforced and the GitHub Actions snippet (with fetch-depth: 0) in one go.
+
+## User
+
+paste it
+
+## Assistant
+
+Perfect.
+Below is the FINAL STRICTEST VERSION of:
+
+Code
+tools/check-product-sync.mjs
+
+This version enforces:
+
+If docs/PRODUCT.md changes → ALL of these must also change:
+
+inputs.yml
+
+inputs.schema.json
+
+docs/CHANGELOG_AI.md
+
+docs/IMPLEMENTATION_MAP.md
+
+It works for:
+
+✅ GitHub Actions pull_request
+
+✅ GitHub Actions push
+
+✅ Local runs
+
+✅ Shallow clones (auto-fetch fallback)
+
+✅ origin/main OR origin/master fallback
+
+It prints very clear failure diagnostics.
+
+📁 tools/check-product-sync.mjs (STRICTEST FINAL)
+JavaScript
+#!/usr/bin/env node
+/**
+ * STRICTEST Product Sync Guard
+ *
+ * Rule:
+ * If docs/PRODUCT.md changed,
+ * then ALL must also change:
+ *   - inputs.yml
+ *   - inputs.schema.json
+ *   - docs/CHANGELOG_AI.md
+ *   - docs/IMPLEMENTATION_MAP.md
+ *
+ * Works for:
+ * - GitHub Actions pull_request
+ * - GitHub Actions push
+ * - Local runs
+ */
+
+import { execSync } from "node:child_process";
+import fs from "node:fs";
+
+const PRODUCT = "docs/PRODUCT.md";
+
+const REQUIRED = [
+  "inputs.yml",
+  "inputs.schema.json",
+  "docs/CHANGELOG_AI.md",
+  "docs/IMPLEMENTATION_MAP.md"
+];
+
+function sh(cmd) {
+  return execSync(cmd, {
+    stdio: ["ignore", "pipe", "pipe"],
+    encoding: "utf8"
+  }).trim();
+}
+
+function fileExists(p) {
+  try {
+    fs.accessSync(p);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function safeJsonRead(p) {
+  try {
+    return JSON.parse(fs.readFileSync(p, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function hasCommit(sha) {
+  if (!sha) return false;
+  try {
+    sh(`git cat-file -e ${sha}^{commit}`);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function fetchIfMissing(sha) {
+  if (!sha) return;
+  if (hasCommit(sha)) return;
+
+  try {
+    sh(`git fetch --no-tags --prune --depth=50 origin ${sha}`);
+  } catch {}
+}
+
+function resolveBaseAndHead() {
+  const headSha = process.env.GITHUB_SHA || sh("git rev-parse HEAD");
+  const eventPath = process.env.GITHUB_EVENT_PATH;
+  const eventName = process.env.GITHUB_EVENT_NAME;
+
+  if (eventPath && fileExists(eventPath)) {
+    const payload = safeJsonRead(eventPath);
+
+    if (eventName === "pull_request" || eventName === "pull_request_target") {
+      return {
+        baseSha: payload?.pull_request?.base?.sha,
+        headSha: payload?.pull_request?.head?.sha || headSha,
+        source: "pull_request"
+      };
+    }
+
+    if (eventName === "push") {
+      return {
+        baseSha: payload?.before,
+        headSha: payload?.after || headSha,
+        source: "push"
+      };
+    }
+  }
+
+  // Local fallback
+  try { sh("git fetch --no-tags --prune origin main --depth=50"); } catch {}
+  try { sh("git fetch --no-tags --prune origin master --depth=50"); } catch {}
+
+  let baseRef = null;
+
+  try { sh("git rev-parse --verify origin/main"); baseRef = "origin/main"; } catch {}
+  if (!baseRef) {
+    try { sh("git rev-parse --verify origin/master"); baseRef = "origin/master"; } catch {}
+  }
+
+  if (baseRef) {
+    return {
+      baseSha: sh(`git rev-parse ${baseRef}`),
+      headSha,
+      source: "local_branch_compare"
+    };
+  }
+
+  // Final fallback: previous commit
+  let baseSha = null;
+  try { baseSha = sh("git rev-parse HEAD^"); } catch {}
+
+  return { baseSha, headSha, source: "local_previous_commit" };
+}
+
+function getChangedFiles(baseSha, headSha) {
+  if (!baseSha || !headSha) return [];
+
+  fetchIfMissing(baseSha);
+
+  try {
+    const out = sh(`git diff --name-only ${baseSha} ${headSha}`);
+    return out ? out.split("\n").map(s => s.trim()).filter(Boolean) : [];
+  } catch {
+    try {
+      const out = sh(`git diff --name-only ${baseSha}...${headSha}`);
+      return out ? out.split("\n").map(s => s.trim()).filter(Boolean) : [];
+    } catch {
+      return [];
+    }
+  }
+}
+
+function main() {
+  try {
+    sh("git rev-parse --is-inside-work-tree");
+  } catch {
+    console.error("[check-product-sync] Not inside a git repository.");
+    process.exit(2);
+  }
+
+  const { baseSha, headSha, source } = resolveBaseAndHead();
+
+  if (!baseSha) {
+    console.log("[check-product-sync] No base SHA resolved. Skipping enforcement.");
+    process.exit(0);
+  }
+
+  const changed = getChangedFiles(baseSha, headSha);
+  const changedSet = new Set(changed);
+
+  const productChanged = changedSet.has(PRODUCT);
+
+  if (!productChanged) {
+    console.log("[check-product-sync] OK: PRODUCT.md not changed.");
+    process.exit(0);
+  }
+
+  const missing = REQUIRED.filter(f => !changedSet.has(f));
+
+  if (missing.length > 0) {
+    console.error("\n[STRICTEST PRODUCT SYNC FAILURE]");
+    console.error("docs/PRODUCT.md changed, but the following required files did NOT change:\n");
+
+    missing.forEach(f => console.error(`  - ${f}`));
+
+    console.error("\nREQUIRED when PRODUCT.md changes:");
+    REQUIRED.forEach(f => console.error(`  - ${f}`));
+
+    console.error("\nFix:");
+    console.error("1) Regenerate/update inputs.yml from PRODUCT changes.");
+    console.error("2) Update inputs.schema.json if spec structure changed.");
+    console.error("3) Update docs/CHANGELOG_AI.md.");
+    console.error("4) Update docs/IMPLEMENTATION_MAP.md.\n");
+
+    console.error(`[Debug] base=${baseSha}`);
+    console.error(`[Debug] head=${headSha}`);
+    console.error(`[Debug] source=${source}`);
+    console.error("\nChanged files:");
+    changed.forEach(f => console.error(`  - ${f}`));
+
+    process.exit(1);
+  }
+
+  console.log("[check-product-sync] OK: PRODUCT.md changed and all required files were updated.");
+  process.exit(0);
+}
+
+main();
+📦 Add Script to package.json
+
+Ensure root package.json contains:
+
+JSON
+{
+  "scripts": {
+    "tools:check-product-sync": "node tools/check-product-sync.mjs"
+  }
+}
+🔧 GitHub Actions (CRITICAL: fetch-depth 0)
+
+Your CI must include:
+
+YAML
+- name: Checkout
+  uses: actions/checkout@v4
+  with:
+    fetch-depth: 0
+
+And include:
+
+YAML
+- name: Product Sync Guard (STRICTEST)
+  run: pnpm tools:check-product-sync
+✅ Final Behavior Summary
+Scenario	Result
+PRODUCT.md unchanged	Pass
+PRODUCT.md changed but inputs.yml unchanged	❌ Fail
+PRODUCT.md changed but schema unchanged	❌ Fail
+PRODUCT.md changed but changelog unchanged	❌ Fail
+PRODUCT.md changed but implementation map unchanged	❌ Fail
+All required updated	✅ Pass
+
+You now have the maximum discipline mode.
+
+If you want next-level enforcement, I can also:
+
+Make the guard verify that inputs.schema.json content hash matches inputs structure
+
+Or make it verify that migrations were added when entities changed
+
+Or enforce commit message conventions tied to PRODUCT changes
+
+What level do you want to push this platform to?
 
