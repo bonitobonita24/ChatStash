@@ -2,7 +2,7 @@
 
 - Conversation ID: 69a3c105-6130-839f-bde4-4186ad5e59c0
 - Title: App Development - AI Spec-Driven App Review
-- Captured: 2026-03-02T13:09:41.680Z
+- Captured: 2026-03-02T13:12:44.602Z
 - URL: https://chatgpt.com/g/g-p-69a3c28d968c8191ac141b91a84da50a/c/69a3c105-6130-839f-bde4-4186ad5e59c0
 
 ---
@@ -5143,4 +5143,190 @@ Or an architecture diff system
 Or a compliance-ready governance layer (SOC2 groundwork)
 
 What do you want to evolve next?
+
+## User
+
+- in the .devcontainer/devcontainer.json (V1 SAFE COPY) file, there is this "name": "Spec-Driven App Platform" value. can we make it a variable or AI agent will fill it up based on the the given name of the app?
+
+## Assistant
+
+Great question. This is a small detail, but it touches something important about what should be dynamic vs what should be stable in your platform.
+
+Short answer:
+
+👉 Yes, you can make the devcontainer name dynamic.
+👉 But you should not rely on AI to mutate it automatically every time.
+👉 The cleanest approach is to make it template-driven, not ad-hoc AI edited.
+
+Let’s break this down properly.
+
+1️⃣ What "name" in devcontainer.json Actually Does
+JSON
+"name": "Spec-Driven App Platform"
+
+This:
+
+Is just the label shown in VS Code
+
+Does not affect runtime behavior
+
+Does not affect Docker
+
+Does not affect Compose
+
+Does not affect CI
+
+It is purely cosmetic + organizational.
+
+So changing it does not affect your app architecture.
+
+2️⃣ Should AI Modify It Automatically?
+
+I recommend:
+
+❌ Do NOT let Copilot randomly mutate .devcontainer/devcontainer.json.
+
+Why?
+
+Because:
+
+Devcontainer is platform infrastructure.
+
+It should remain stable.
+
+It belongs to platform layer, not app layer.
+
+If you let AI rewrite it every time the app name changes, you introduce:
+
+Unnecessary diffs
+
+Noise in commits
+
+Possible accidental config drift
+
+3️⃣ Clean, Professional Solution (Best Practice)
+
+Instead of letting AI edit it directly, use a template placeholder.
+
+Example:
+
+JSON
+"name": "Spec-Driven Platform - {{APP_NAME}}"
+
+Then when generating the platform the first time, AI replaces {{APP_NAME}} once.
+
+After that, it never touches it again.
+
+This keeps:
+
+Deterministic behavior
+
+Clean diff history
+
+No surprise mutations
+
+4️⃣ Even Better: Derive It From inputs.yml
+
+Your inputs.yml already contains:
+
+YAML
+app:
+  name: "TaskFlow Pro"
+
+So your rule can be:
+
+During initial scaffold generation only, set:
+
+.devcontainer/devcontainer.json.name = "Spec-Driven Platform - <app.name>"
+
+After initial generation, it becomes static.
+
+No future auto-mutation.
+
+5️⃣ If You REALLY Want It Fully Dynamic
+
+You could technically use:
+
+JSON
+"name": "Spec-Driven Platform - ${localWorkspaceFolderBasename}"
+
+But:
+
+That reflects folder name, not product name.
+
+It may not match branding.
+
+It’s less clean than using app.name.
+
+I do not recommend relying on folder name.
+
+6️⃣ What I Recommend for Your System (Strict Rule)
+
+Add this rule to your MASTER PROMPT:
+
+During initial scaffold generation:
+
+Replace devcontainer name with:
+"Spec-Driven Platform - <app.name>"
+
+After that, devcontainer config must not be auto-modified by feature updates.
+
+This keeps separation of concerns:
+
+Layer	Allowed to change
+PRODUCT.md	Often
+inputs.yml	When features change
+Code	When features change
+Devcontainer	Rarely (platform-level only)
+7️⃣ Updated devcontainer.json Template Version
+
+You can change your bootstrap version to:
+
+JSON
+{
+  "name": "Spec-Driven Platform - {{APP_NAME}}",
+
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+
+  "remoteUser": "node",
+  "updateRemoteUserUID": true,
+
+  "mounts": [
+    "source=pnpm-store,target=/home/node/.pnpm-store,type=volume"
+  ],
+
+  "runArgs": ["--ulimit", "nofile=65536:65536"],
+
+  "postCreateCommand": "corepack enable && pnpm -v"
+}
+
+Then your scaffold prompt includes:
+
+Replace {{APP_NAME}} with inputs.yml.app.name during initial generation.
+
+8️⃣ Final Answer
+
+Yes, it can be dynamic.
+
+But:
+
+Make it dynamic only during initial scaffold.
+
+Use inputs.yml.app.name.
+
+Do not let it mutate on feature updates.
+
+Treat devcontainer as platform infrastructure.
+
+If you'd like, I can now:
+
+Update your full MASTER prompt to include this as a strict rule
+
+Or design a "platform metadata sync rule" that keeps branding consistent across devcontainer, README, and package.json
+
+Which one do you want?
 
