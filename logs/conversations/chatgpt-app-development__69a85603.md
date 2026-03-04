@@ -2,7 +2,7 @@
 
 - Conversation ID: 69a85603-7dd0-8398-a3e1-1cb799a82afe
 - Title: ChatGPT - App Development
-- Captured: 2026-03-04T16:29:53.601Z
+- Captured: 2026-03-04T16:33:16.884Z
 - URL: https://chatgpt.com/g/g-p-69a3c28d968c8191ac141b91a84da50a-app-development/c/69a85603-7dd0-8398-a3e1-1cb799a82afe
 
 ---
@@ -722,4 +722,62 @@ rules
 If you want, I can also generate a FULL completed PRODUCT.md for your Countdown Arena app that is perfectly optimized for your Spec-Driven AI development system (Next.js + NestJS + Prisma + Keycloak + BullMQ + MinIO).
 
 That will save you hours of architecture iteration.
+
+## User
+
+- no, what I'm about to build is not for Countdown Arena.
+- I'm want to build a Fisherfolk Management System
+- Full fisherfolk profiling + operations
+- Registration, livelihoods, vessels, permits, catch monitoring, reporting
+- Registration data includes:
+1. ID Number ( manual input, must be unique )
+2. Full Name ( Last Name, First Name, Middle Name, must be unique, no multiple ID can be in one full name )
+3. Date of Birth (MM/DD/YYYY)
+4. Address (Calapan City, Oriental Mindoro ready selection of barangays)
+5. Sex ( Selection of Male or Female)
+6. Image ( Upload or via webcam/phone camera options with auto crop to 1x1 ratio)
+7. Signature ( Upload or via stylus pen drawing options auto cropping to signed image area )
+8. RSBSA Number ( manual input, must be unique )
+9. Contact number ( Manual input, must be saved with +63 prefix then starts with number 9 to be filled )
+10. Fisherfolk Category type Selection ( can multi-select ): 
+a. Boat Owner/Operator
+b. Capture Fishing
+c. Gleaning
+d. Vendor
+e. Fish Processing
+f. Aquaculture
+11. Is President? ( Just a clickable check box, if clicked/checked means that the currently registering fisherfolk is a President in his barangay based on the address selected )
+
+- this Fisherfolk Management System is just a module/app which will a part of a bigger system or an enterprise system
+- I just want to start from this app because this is the foundation and first entry of data that will be used in the next app or module inside the enterprise system
+- another module or app is Vessel registration, type, tonnage, licensing, Fishing Gears - Gear types, quantities, associations, Permits & Licenses
+- Permits, renewal tracking, Programs / Interventions - Government programs, beneficiaries, distribution, Catch / Harvest records - Species, volume, landing sites, dates
+
+## Assistant
+
+Got it — you’re building a Fisherfolk Management System (FMS) module that becomes the master data foundation for a larger enterprise platform. Below is a ready-to-paste PRODUCT.md content (fill-in style but already concrete), optimized for spec-driven generation.
+
+0) One-paragraph summary (required)
+
+The Fisherfolk Management System (FMS) is a government operations module for managing complete fisherfolk profiles and field operations data in Calapan City, Oriental Mindoro. It supports registration and identity capture (photo + signature), categorization by livelihood types, and links each fisherfolk to vessels, gears, permits, programs, and catch/harvest monitoring. The system is intended for LGU/agency staff, field enumerators, and administrators who need reliable, searchable records, compliance tracking, and reporting. Success means high-quality unique profiles, fast lookup, minimal duplicates, traceable updates, and accurate operational reports usable by downstream enterprise modules.
+
+1) App identity (required)
+
+App Name: Fisherfolk Management System (FMS)
+
+Tagline: “Unified fisherfolk profiling and operations tracking.”
+
+Primary user value: Centralized, validated fisherfolk master records that connect to vessels, permits, programs, and catch monitoring for compliance and reporting.
+
+Non-goals (explicitly out of scope):
+
+Full accounting/financial management
+
+Public-facing social/community features
+
+E-commerce marketplace
+
+GIS-grade vessel tracking (future module)
+
+National registry synchronization
 
