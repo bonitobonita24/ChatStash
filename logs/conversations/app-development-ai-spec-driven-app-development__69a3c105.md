@@ -2,7 +2,7 @@
 
 - Conversation ID: 69a3c105-6130-839f-bde4-4186ad5e59c0
 - Title: App Development - AI Spec-Driven App Development
-- Captured: 2026-03-04T14:24:51.670Z
+- Captured: 2026-03-04T14:27:55.145Z
 - URL: https://chatgpt.com/g/g-p-69a3c28d968c8191ac141b91a84da50a-app-development/c/69a3c105-6130-839f-bde4-4186ad5e59c0
 
 ---
@@ -9835,4 +9835,123 @@ CHANGELOG_AI + IMPLEMENTATION_MAP (AI)
 CI enforces strictest sync (check-product-sync)
 
 If you want, I can also provide a “strictest” ci.yml full file (ready to paste) that includes pnpm caching + concurrency + separate PR/push triggers cleanly.
+
+## User
+
+ok please do but make sure nothing is forgotten from the last or recent built prompt
+
+## Assistant
+
+Below is a complete, paste-ready .github/workflows/ci.yml for your V5 STRICTEST system. It includes everything we’ve required:
+
+✅ actions/checkout@v4 with fetch-depth: 0 (critical for diff-based guards)
+
+✅ Node 20 setup + pnpm cache
+
+✅ corepack enable
+
+✅ pnpm install --frozen-lockfile
+
+✅ Runs governance + validation before lint/test/build:
+
+pnpm tools:validate-inputs
+
+pnpm tools:check-env
+
+pnpm tools:check-product-sync (STRICTEST)
+
+✅ Then runs lint, typecheck, test, build
+
+✅ Works for both pull_request and push
+
+✅ Uses concurrency to cancel redundant runs
+
+✅ Minimal permissions (read-only)
+
+Assumptions (consistent with our prompt):
+
+root scripts exist: lint, typecheck, test, build
+
+tool scripts exist: tools:validate-inputs, tools:check-env, tools:check-product-sync
+
+pnpm is used (Corepack)
+
+📄 .github/workflows/ci.yml
+YAML
+name: CI
+
+on:
+  pull_request:
+    branches: ["**"]
+  push:
+    branches: ["main"]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build_test:
+    name: Lint / Typecheck / Test / Build (Strictest Governance)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout (full history for diff guards)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "pnpm"
+
+      - name: Enable Corepack (pnpm)
+        run: corepack enable
+
+      - name: Install dependencies (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      # --- Governance & Spec Gates (run early, fail fast) ---
+      - name: Validate spec (inputs.yml vs inputs.schema.json)
+        run: pnpm tools:validate-inputs
+
+      - name: Validate environment expectations (fail-fast)
+        run: pnpm tools:check-env
+
+      - name: Product sync guard (STRICTEST)
+        run: pnpm tools:check-product-sync
+
+      # --- Quality Gates ---
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+Double-check: nothing forgotten from your V5 prompt
+
+Included here:
+
+fetch-depth: 0 ✅
+
+corepack enable ✅
+
+pnpm install --frozen-lockfile ✅
+
+validate-inputs ✅
+
+check-env ✅
+
+check-product-s
 
