@@ -2,7 +2,7 @@
 
 - Conversation ID: 69a3c105-6130-839f-bde4-4186ad5e59c0
 - Title: App Development - AI Spec-Driven App Development
-- Captured: 2026-03-04T15:41:21.783Z
+- Captured: 2026-03-04T15:44:25.581Z
 - URL: https://chatgpt.com/g/g-p-69a3c28d968c8191ac141b91a84da50a-app-development/c/69a3c105-6130-839f-bde4-4186ad5e59c0
 
 ---
@@ -10818,5 +10818,139 @@ If multi or undecided, specify likely future:
 
 ---
 
-## 9) Data sensitivity & governance (require
+## 9) Data sensitivity & governance (required)
+- Contains PII? (yes/no)
+- Data retention policy:
+- Data export requirement (yes/no):
+- Right-to-delete requirement (yes/no):
+- Audit log required events (list them):
+  - login
+  - role change
+  - delete operations
+  - …
+
+---
+
+## 10) Storage & uploads (required if you upload anything)
+- Upload types: images | video | docs | other
+- Max file size:
+- Allowed MIME types:
+- Virus scanning required? (now/later)
+- Public or private objects?
+- Object lifecycle rules (expiry, deletion):
+- Buckets needed (names or categories):
+
+### Upload workflow (presigned S3)
+1) Client requests presign
+2) API validates size/type
+3) API returns { uploadUrl, objectKey }
+4) Client uploads to MinIO
+5) Client notifies API to attach object (optional)
+
+---
+
+## 11) Realtime requirements (optional)
+If you need realtime:
+- Features needing realtime:
+- Transport: WebSocket | SSE | polling
+- Frequency and scale expectations:
+
+---
+
+## 12) Background jobs & async workflows (required if any)
+List the jobs that should run in BullMQ.
+
+### Job: <Name>
+- Trigger:
+- Inputs:
+- Steps:
+- Retries/backoff:
+- Idempotency key:
+- Failure handling:
+- DLQ + replay needed? (yes/no)
+
+Also specify:
+- Scheduled jobs needed? (cron-like)
+
+---
+
+## 13) Notifications (optional)
+- Email notifications (yes/no)
+- In-app notifications (yes/no)
+- Push notifications (later/now)
+- Notification triggers:
+
+---
+
+## 14) Performance & scale (recommended)
+Give rough scale targets (can be estimates):
+- Expected DAU/MAU:
+- Peak requests/sec:
+- Upload volume/day:
+- DB size expectations:
+
+---
+
+## 15) Environments & domains (required)
+- Environments: dev / stage / prod
+- Domain/base URL (if known):
+  - dev:
+  - stage:
+  - prod:
+- Local dev URLs:
+  - web:
+  - api:
+
+---
+
+## 16) Observability requirements (recommended)
+- Logs: JSON in prod, pretty in dev (yes/no)
+- Metrics: Prometheus (yes/no)
+- Tracing: OpenTelemetry (yes/no)
+- Alerting priorities (later/now):
+- Health endpoints required:
+  - liveness
+  - readiness
+
+---
+
+## 17) Security requirements (required)
+- CORS policy:
+- CSRF: needed? (yes/no)
+- Rate limiting targets:
+- Admin endpoints protections:
+- Allowed origins:
+- Secrets handling rule: env-only (yes/no)
+
+---
+
+## 18) Acceptance criteria (required)
+List “done means done” checks.
+
+- User can login/logout successfully
+- User can perform Workflow A end-to-end
+- Upload works via presigned URLs
+- Background job runs and is observable
+- CI passes
+- Compose up brings infra online
+- Health endpoints return OK
+- Governance guard blocks unsynced changes
+
+---
+
+## 19) Open questions (optional)
+List anything undecided that Copilot should ask you about.
+Two quick tips so Copilot generates better code
+
+Be explicit about entity relationships
+Even simple lines like “Entry belongsTo Arena; Arena hasMany Entries” massively improves Prisma scaffolding.
+
+Write workflows as “inputs → validations → writes → side effects”
+That directly maps to controller/service/job boundaries.
+
+If you paste your filled docs/PRODUCT.md here (even rough), I can:
+
+identify missing details that would improve scaffolding
+
+suggest a tighter version that produces cleaner modules/routes/migrations on first generation
 
