@@ -2,7 +2,7 @@
 
 - Conversation ID: 69a85603-7dd0-8398-a3e1-1cb799a82afe
 - Title: ChatGPT - App Development
-- Captured: 2026-03-04T17:18:52.524Z
+- Captured: 2026-03-04T17:21:55.065Z
 - URL: https://chatgpt.com/g/g-p-69a3c28d968c8191ac141b91a84da50a-app-development/c/69a85603-7dd0-8398-a3e1-1cb799a82afe
 
 ---
@@ -3147,4 +3147,470 @@ Constraints: index(entityType, entityId), index(actorUserId), index(createdAt)
 Workflow A: Register fisherfolk profile (create)
 
 User opens “Register Fisherfolk”
+
+System displays registration form with required fields and barangay dropdown (Calapan City only)
+
+User inputs:
+
+ID Number (unique)
+
+Full Name (Last, First, Middle) (unique by normalized rule)
+
+Date of Birth (MM/DD/YYYY)
+
+Sex (Male/Female)
+
+Barangay (selected)
+
+RSBSA Number (unique)
+
+Contact number (user may input digits; system normalizes to +63...)
+
+Fisherfolk Category types (multi-select)
+
+Is President? checkbox
+
+User captures Photo:
+
+Upload OR webcam/phone camera
+
+UI enforces auto-crop to 1x1 ratio before saving
+
+User captures Signature:
+
+Upload OR stylus/draw pad
+
+UI auto-crops to signed image area
+
+System validates:
+
+uniqueness: idNumber, rsbsaNumber, fullNameNormalized
+
+contactNumberE164 pattern +639XXXXXXXXX
+
+required fields completeness
+
+System stores:
+
+Fisherfolk record
+
+category join records
+
+photo + signature media records
+
+System writes AuditLog: action=create, entityType=Fisherfolk
+
+System responds with created profile and redirects to profile output view
+
+Workflow B: Search fisherfolk (list view)
+
+User opens Fisherfolk List
+
+User searches by any:
+
+ID Number
+
+Full name (partial)
+
+RSBSA Number
+
+Barangay filter
+
+Category filter
+
+Status filter
+
+System returns paginated list results
+
+List row displays key summary fields:
+
+Photo thumbnail
+
+Full name
+
+ID Number
+
+Barangay
+
+Categories (badges)
+
+President indicator (badge)
+
+Status
+
+User selects a record (click name or ID) → navigates to profile output view
+
+Workflow C: View fisherfolk profile record (output display)
+
+User opens a fisherfolk record from search/list
+
+System retrieves full fisherfolk profile + related reference/join data
+
+System displays a detailed profile output view containing:
+
+IDENTITY
+
+Photo (1x1)
+
+ID Number
+
+Full Name
+
+Date of Birth
+
+Sex
+
+RSBSA Number
+
+Contact Number
+
+ADDRESS
+
+City (Calapan City)
+
+Barangay
+
+CATEGORIES
+
+Multi-select categories displayed as badges
+
+ROLE INDICATOR
+
+Is Barangay President? (Yes/No)
+
+MEDIA
+
+Signature image preview
+
+SYSTEM INFO
+
+Status
+
+CreatedAt
+
+UpdatedAt
+
+Merge info (if merged: show mergedIntoId target link)
+
+FUTURE LINK SECTIONS (read-only placeholders if modules exist)
+
+Vessels (from VMS)
+
+Permits (from VMS)
+
+Catch reports (from VMS)
+
+Programs/benefits (from VMS)
+
+Workflow D: Update fisherfolk profile
+
+User opens profile → Edit
+
+System enforces field-level edit permissions:
+
+user can edit non-critical fields (e.g., contact, categories, president flag, photo/signature)
+
+critical identity fields require moderator/admin
+
+System validates any changed fields:
+
+uniqueness checks if critical fields changed
+
+contact normalization/validation
+
+System saves changes
+
+System writes AuditLog: action=update
+
+Workflow E: Deactivate / Reactivate fisherfolk
+
+Moderator/Admin selects Deactivate (requires reason)
+
+System sets status to inactive (or appropriate status) and logs AuditLog
+
+Reactivation sets status back to active with AuditLog
+
+Workflow F: Merge duplicate fisherfolk records
+
+Moderator searches and selects two records suspected duplicates
+
+System displays merge preview and warnings (critical action)
+
+Moderator chooses primary record and confirms merge reason
+
+System sets secondary record:
+
+status=merged
+
+mergedIntoId=primary.id
+
+mergedAt timestamp
+
+locks edits (read-only)
+
+System re-links all foreign keys in other modules to primary record (when those modules exist)
+
+System writes AuditLog: action=merge
+
+5) Screens & navigation (recommended)
+
+FMS is a module menu inside the enterprise workspace left navigation.
+
+FMS screens (authenticated, module-scoped)
+
+/fms/fisherfolk — list + search + filters
+
+/fms/fisherfolk/new — registration form + photo/signature capture
+
+/fms/fisherfolk/[fisherfolkId] — profile output view
+
+/fms/fisherfolk/[fisherfolkId]/edit — edit form (role-gated fields)
+
+/fms/reports — summary reports and exports
+
+/fms/duplicates — duplicate detection and merge (moderator/admin)
+
+Admin screens (role-gated)
+
+/admin/reference/barangays
+
+/admin/reference/categories
+
+/admin/audit-logs (or global audit)
+
+6) API expectations (recommended)
+
+API base path: /api/v1
+
+Response envelope: { code, message, requestId, data, error }
+
+Pagination: cursor-based
+
+Filtering/sorting:
+
+GET /fms/fisherfolk?q=...&barangayId=...&categoryId=...&status=...
+
+Errors:
+
+409 Conflict for uniqueness violations
+
+422 Unprocessable Entity for validation errors
+
+Suggested endpoints:
+
+POST /api/v1/fms/fisherfolk
+
+GET /api/v1/fms/fisherfolk (list/search)
+
+GET /api/v1/fms/fisherfolk/:id (profile output)
+
+PATCH /api/v1/fms/fisherfolk/:id
+
+POST /api/v1/fms/fisherfolk/:id/photo/presign
+
+POST /api/v1/fms/fisherfolk/:id/signature/presign
+
+POST /api/v1/fms/fisherfolk/merge (moderator/admin)
+
+7) Authentication & authorization (required)
+Auth provider
+
+Keycloak realm name: enterprise (recommended)
+
+Required identity fields: sub (userId), email, name
+
+Login method: email/password
+
+Token type: JWT
+
+JWT claims mapping
+
+userId: sub
+
+roles: realm_access.roles
+
+tenantId: none (single tenant)
+
+RBAC rules
+
+viewer: read
+
+user: create + limited edit
+
+moderator: critical edits + merge + deactivate/reactivate
+
+admin: full access + exports + reference data + role admin
+
+8) Tenancy model (required)
+
+Tenancy mode: single (Calapan City scope)
+
+Future: add tenantId if expanding to multiple LGUs
+
+9) Data sensitivity & governance (required)
+
+Contains PII? yes
+
+Data retention: per LGU policy; soft-delete only
+
+Data export requirement: yes (role-gated)
+
+Right-to-delete: policy-dependent (likely constrained)
+
+Audit log required events:
+
+create/update
+
+critical identity field changes
+
+deactivate/reactivate
+
+merge
+
+exports
+
+role changes
+
+10) Storage & uploads (required)
+
+Upload types: images (photo, signature)
+
+Max file size: 10MB
+
+Allowed MIME types: image/jpeg, image/png, image/webp
+
+Virus scanning: later (recommended)
+
+Object access: private
+
+Buckets:
+
+fms-fisherfolk-photos
+
+fms-fisherfolk-signatures
+
+Upload workflow (presigned S3)
+
+Client requests presign (photo or signature)
+
+API validates size/type and returns { uploadUrl, objectKey }
+
+Client uploads to MinIO
+
+Client calls API to attach uploaded object to fisherfolk record
+
+System optionally generates thumbnail/cropped derivatives
+
+11) Realtime requirements (optional)
+
+None for v1.
+
+12) Background jobs & async workflows (required if any)
+Job: Generate exports (CSV/PDF)
+
+Trigger: user requests export from Reports
+
+Inputs: filters, format
+
+Steps: query → generate file → upload to MinIO → notify user
+
+Retries/backoff: yes
+
+Idempotency key: exportRequestId
+
+Failure handling: mark failed + allow retry
+
+DLQ + replay: yes
+
+13) Notifications (optional)
+
+In-app notifications: yes (export ready)
+
+Email: later
+
+Push: later
+
+14) Performance & scale (recommended)
+
+Expected users: 20–300 staff users (LGU + partner offices)
+
+Peak RPS: < 50
+
+Uploads/day: 20–500 images/day
+
+DB growth: steady; must support multi-year history
+
+15) Environments & domains (required)
+
+Environments: dev / stage / prod
+
+Local dev URLs:
+
+web: http://localhost:3000
+
+api: http://localhost:3001
+
+16) Observability requirements (recommended)
+
+Logs: JSON in prod, pretty in dev: yes
+
+Metrics: Prometheus (optional in v1)
+
+Tracing: OpenTelemetry (later)
+
+Health endpoints:
+
+liveness
+
+readiness
+
+17) Security requirements (required)
+
+CORS: allow only approved origins
+
+CSRF: depends on auth strategy; document decision
+
+Rate limiting: apply to search + upload presign endpoints
+
+Admin protections: admin-only + audit logs
+
+Secrets: env-only
+
+18) Acceptance criteria (required)
+
+User can login and access FMS module menu based on permissions
+
+User can register fisherfolk with all required fields
+
+Uniqueness checks enforced: ID Number, Full Name (normalized), RSBSA Number
+
+Contact number is stored in +63 format and validated
+
+Barangay selection is constrained to Calapan City list
+
+Categories are multi-select and persist correctly
+
+Photo and signature capture flows work with cropping requirements
+
+Search/list view works with pagination and filters
+
+Opening a record shows the full profile output view
+
+Audit logs exist for create/update/merge/deactivate actions
+
+Export job works and is observable
+
+19) Open questions (optional)
+
+Do you require suffix support (Jr/Sr/III) as part of name uniqueness?
+
+Is middle name mandatory, and what is the standard placeholder if unknown?
+
+Should photo/signature be required to complete registration, or can record be saved as “pending”?
+
+Should FMS support bulk import of historical fisherfolk records (CSV) with review queue?
+
+Should duplicates be blocked strictly or allow “create with warning” for same full name?
+
+If you want next: I can generate the matching VMS docs/modules/vms/PRODUCT.md using the same level of detail and ensuring it references FMS strictly by fisherfolkId (no duplicated person fields).
 
