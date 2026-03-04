@@ -2,7 +2,7 @@
 
 - Conversation ID: 69a3c105-6130-839f-bde4-4186ad5e59c0
 - Title: App Development - AI Spec-Driven App Development
-- Captured: 2026-03-04T15:38:17.791Z
+- Captured: 2026-03-04T15:41:21.783Z
 - URL: https://chatgpt.com/g/g-p-69a3c28d968c8191ac141b91a84da50a-app-development/c/69a3c105-6130-839f-bde4-4186ad5e59c0
 
 ---
@@ -10666,4 +10666,157 @@ When writing PRODUCT.md, always include:
 Those sections dramatically improve AI scaffolding accuracy.
 
 If you'd like, I can also show you a "perfect PRODUCT.md template" optimized for AI scaffolding, which will make Copilot generate much better architectures on the first run.
+
+## User
+
+yes please do
+
+## Assistant
+
+Here’s a “perfect PRODUCT.md template” optimized for spec-driven AI scaffolding (NestJS + Next.js + Prisma + Keycloak + MinIO + BullMQ + Compose-first). It’s designed so Copilot can reliably derive:
+
+entities + relations
+
+modules/routes/pages
+
+auth/RBAC
+
+storage + upload policy
+
+realtime + background jobs
+
+observability/security needs
+
+multi-tenant readiness
+
+Copy/paste this into docs/PRODUCT.md and fill it in.
+
+✅ docs/PRODUCT.md — AI-Optimized Template
+Markdown
+# Product Definition
+
+## 0) One-paragraph summary (required)
+Write 3–6 sentences describing what the product is, who it’s for, and what success looks like.
+
+---
+
+## 1) App identity (required)
+- **App Name:**
+- **Tagline:**
+- **Primary user value:**
+- **Non-goals (explicitly out of scope):**
+
+---
+
+## 2) Personas & roles (required)
+### Personas (human descriptions)
+- Persona A:
+- Persona B:
+- Persona C:
+
+### System roles (for RBAC)
+List the exact roles the system must support:
+- Role: `viewer` — permissions summary
+- Role: `user` — permissions summary
+- Role: `moderator` — permissions summary
+- Role: `admin` — permissions summary
+
+> Note: If you need per-entity permissions (e.g., “moderator can delete any entry”), write it here.
+
+---
+
+## 3) Core entities & relationships (required)
+List your main data objects. For each entity, specify fields and relationships.
+
+### Entity: User
+- Fields: id, email, displayName, avatarUrl, status, createdAt
+- Relationships: hasMany X, belongsTo Y
+
+### Entity: <EntityName>
+- Fields:
+- Relationships:
+- Constraints (uniques, indexes, required fields):
+
+Repeat for all entities.
+
+---
+
+## 4) Primary workflows (required, step-by-step)
+Write workflows as numbered steps. These become UI pages + API endpoints.
+
+### Workflow A: <Name>
+1) User does…
+2) System validates…
+3) System stores…
+4) System responds…
+5) Notifications/side effects…
+
+### Workflow B: <Name>
+1) …
+2) …
+
+---
+
+## 5) Screens & navigation (recommended)
+List the screens you expect (even if rough). This helps Next.js routing.
+
+### Public screens
+- `/`:
+- `/auth/login`:
+- `/auth/callback`:
+
+### App screens (authenticated)
+- `/dashboard`:
+- `/settings`:
+- `/...`:
+
+### Admin screens (role-gated)
+- `/admin`:
+- `/admin/users`:
+- `/admin/...`:
+
+---
+
+## 6) API expectations (recommended)
+Describe any external API constraints or conventions.
+
+- API base path: `/api/v1`
+- Response envelope: `{ code, message, requestId, data, error }` (or specify)
+- Pagination style: cursor | offset
+- Filtering/sorting style:
+- Error handling expectations:
+
+---
+
+## 7) Authentication & authorization (required)
+### Auth provider
+- Keycloak realm name (if known):
+- Required identity fields:
+- Login method: email/password | social | SSO
+- Token type: JWT
+
+### JWT claims mapping (important)
+- Where is `userId` stored?
+- Where are roles stored? (claim name)
+- If multi-tenant: where is `tenantId` stored? (claim name)
+
+### RBAC rules
+List rules clearly:
+- Role X can do Y on entity Z
+- Role Y cannot do…
+
+---
+
+## 8) Tenancy model (required)
+Choose one:
+- **Tenancy mode:** single | multi | undecided
+
+If multi or undecided, specify likely future:
+- Partitioning preference: row | schema | database
+- Tenant boundary rules (what must be isolated?)
+- Admin scope: global admin | tenant admin | both
+
+---
+
+## 9) Data sensitivity & governance (require
 
