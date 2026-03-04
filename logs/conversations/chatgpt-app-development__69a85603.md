@@ -2,7 +2,7 @@
 
 - Conversation ID: 69a85603-7dd0-8398-a3e1-1cb799a82afe
 - Title: ChatGPT - App Development
-- Captured: 2026-03-04T17:09:45.839Z
+- Captured: 2026-03-04T17:12:47.907Z
 - URL: https://chatgpt.com/g/g-p-69a3c28d968c8191ac141b91a84da50a-app-development/c/69a85603-7dd0-8398-a3e1-1cb799a82afe
 
 ---
@@ -2803,4 +2803,109 @@ Next.js routes
 dashboards
 
 ✅ If you want, the next extremely useful step is that I generate the complete modules/fms/PRODUCT.md based on all the fisherfolk registration fields you gave earlier — properly structured so your AI pipeline will generate the database, API, and UI correctly.
+
+## User
+
+ok just to clarify something first, should I just copy everything from "Enterprise PRODUCT.md" sentence and paster it to my PRODUCT.md file?
+
+## Assistant
+
+Yes — but with one important clarification for your Spec-Driven workflow.
+
+You should copy the Enterprise PRODUCT.md content into docs/PRODUCT.md, not into the module PRODUCT.md.
+
+So the rule is:
+
+docs/PRODUCT.md                ← Enterprise PRODUCT (copy the whole thing)
+
+docs/modules/fms/PRODUCT.md    ← Fisherfolk module spec
+docs/modules/vms/PRODUCT.md    ← Vessel module spec
+
+Your Enterprise PRODUCT.md describes the entire ecosystem, while the module PRODUCT.md files describe detailed system behavior per module.
+
+1️⃣ What you should do right now
+
+Create this file:
+
+docs/PRODUCT.md
+
+Then paste the Enterprise PRODUCT.md I generated exactly as it is.
+
+You do not need to modify anything yet.
+
+2️⃣ Your correct project spec structure
+
+For your Spec-Driven system, the clean structure should be:
+
+docs/
+│
+├─ PRODUCT.md                ← Enterprise system definition
+│
+└─ modules/
+    │
+    ├─ fms/
+    │   └─ PRODUCT.md        ← Fisherfolk Management System
+    │
+    └─ vms/
+        └─ PRODUCT.md        ← Vessel Management System
+3️⃣ Why this matters for your AI platform
+
+Your AI pipeline will use the specs like this:
+
+Spec	Purpose
+Enterprise PRODUCT.md	system architecture, modules, workspace navigation
+FMS PRODUCT.md	fisherfolk registry rules
+VMS PRODUCT.md	vessel/permit/catch operations
+
+This prevents AI from:
+
+❌ mixing vessel fields into fisherfolk tables
+❌ generating duplicate APIs
+❌ creating wrong dependencies
+
+4️⃣ What happens after you paste it
+
+When you run your Spec-Driven discovery phase, the AI will already know:
+
+the platform has modules
+
+the first module is FMS
+
+the second module is VMS
+
+modules appear as menus in a workspace
+
+modules share master data
+
+So your generated architecture will align with your plan.
+
+5️⃣ One small improvement before you run discovery (recommended)
+
+Add this small section to the bottom of the Enterprise PRODUCT.md.
+
+Module Boundaries
+FMS (Fisherfolk Management System)
+Owns fisherfolk identity and master records.
+
+VMS (Vessel Management System)
+Owns vessels, permits, catch reporting, and program operations.
+
+Other modules must reference these master entities instead of duplicating them.
+
+This helps the AI enforce data ownership rules.
+
+6️⃣ Your next best step
+
+After you paste the Enterprise PRODUCT.md:
+
+We should immediately generate:
+
+docs/modules/fms/PRODUCT.md
+
+because FMS is the foundation module.
+
+Once FMS is defined properly, the VMS module can safely depend on it.
+
+If you'd like, I can now generate the complete FMS PRODUCT.md (based on your exact fisherfolk fields, photo capture, signature capture, and uniqueness rules).
+That one will be very important because it defines the core identity data of your entire system.
 
