@@ -2,7 +2,7 @@
 
 - Conversation ID: 69a85603-7dd0-8398-a3e1-1cb799a82afe
 - Title: App Development - Filling PRODUCT.md Prompt
-- Captured: 2026-03-05T12:21:05.236Z
+- Captured: 2026-03-05T12:24:09.340Z
 - URL: https://chatgpt.com/g/g-p-69a3c28d968c8191ac141b91a84da50a/c/69a85603-7dd0-8398-a3e1-1cb799a82afe
 
 ---
@@ -12621,4 +12621,144 @@ Keycloak integration
 migration safety
 
 This is the most critical code review moment of the entire build.
+
+## User
+
+please help starting Fix 2 — x-tenant-id header, i dont get how to fix this
+
+## Assistant
+
+Great question. This fix is actually simple, and you only need to adjust the concept in the spec before code generation. I’ll walk you through it step-by-step.
+
+The goal is:
+
+The browser should send the tenant SLUG (calapan), not the internal tenant UUID.
+
+This keeps the UUID hidden from the client and is safer.
+
+1️⃣ What Copilot currently planned
+
+Right now your implementation map says:
+
+Frontend → API request
+
+x-tenant-id: 6f4e0e8a-3c7c-4f4c-8a6b-9e0e5f6e1abc
+
+This exposes the internal database ID.
+
+We want instead:
+
+x-tenant-slug: calapan
+
+Then the backend converts it to tenantId internally.
+
+2️⃣ What the correct architecture should be
+Browser request
+
+Example request from frontend:
+
+GET /api/v1/fms/fisherfolk
+
+Header sent automatically by frontend:
+
+x-tenant-slug: calapan
+Backend middleware resolves tenant
+
+NestJS middleware does this:
+
+calapan → lookup Tenant table → get UUID
+
+Example result:
+
+calapan → tenantId = 6f4e0e8a-3c7c-4f4c-8a6b-9e0e5f6e1abc
+
+Then the request context becomes:
+
+request.tenantId = 6f4e0e8a-3c7c-4f4c-8a6b-9e0e5f6e1abc
+
+Every database query uses that.
+
+3️⃣ What you should change in IMPLEMENTATION_MAP.md
+
+Find this section in your file:
+
+TenantResolverMiddleware
+Read x-tenant-id header
+
+Replace with:
+
+TenantResolverMiddleware
+
+Read x-tenant-slug header from request.
+
+Example:
+x-tenant-slug: calapan
+
+Lookup tenant using subdomain/slug:
+
+SELECT id FROM Tenant WHERE subdomain = 'calapan'
+
+Attach resolved tenantId to request context:
+
+request.tenantId = {UUID}
+4️⃣ Update the Next.js middleware description
+
+In this section:
+
+Next.js Middleware (apps/web/middleware.ts)
+
+Add this clarification:
+
+Next.js extracts tenant slug from subdomain.
+
+Example:
+calapan.fish.powerbyte.app → slug = calapan
+
+Frontend API client automatically sends:
+
+x-tenant-slug: calapan
+5️⃣ Final request flow (after fix)
+User opens
+https://calapan.fish.powerbyte.app
+Next.js middleware detects
+tenantSlug = "calapan"
+API call
+GET /api/v1/fms/fisherfolk
+x-tenant-slug: calapan
+Authorization: Bearer <JWT>
+Backend resolves
+TenantResolverMiddleware
+→ slug "calapan"
+→ tenantId UUID
+Prisma query
+SELECT * FROM Fisherfolk
+WHERE tenantId = {UUID}
+6️⃣ Why this is better
+Method	Problem
+x-tenant-id	exposes database UUID
+x-tenant-slug	safe and human readable
+
+This is the standard SaaS pattern used by:
+
+Stripe
+
+Linear
+
+Notion
+
+Vercel
+
+7️⃣ Important: you don’t need to regenerate anything
+
+Just update the spec text inside IMPLEMENTATION_MAP.md.
+
+Nothing else changes.
+
+8️⃣ After this fix
+
+You are ready to start PHASE 4 generation.
+
+If you'd like, I can also show you one more small improvement that will make your system much safer:
+
+👉 The “Tenant Safety Guard” pattern used by Stripe and Shopify (prevents accidental cross-tenant data leaks).
 
