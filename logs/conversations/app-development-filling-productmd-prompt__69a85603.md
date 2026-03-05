@@ -2,7 +2,7 @@
 
 - Conversation ID: 69a85603-7dd0-8398-a3e1-1cb799a82afe
 - Title: App Development - Filling PRODUCT.md Prompt
-- Captured: 2026-03-05T09:32:20.584Z
+- Captured: 2026-03-05T09:35:24.055Z
 - URL: https://chatgpt.com/g/g-p-69a3c28d968c8191ac141b91a84da50a/c/69a85603-7dd0-8398-a3e1-1cb799a82afe
 
 ---
@@ -11068,4 +11068,130 @@ image optimization variants (thumb/display)
 ID printing constraints (max 4, 200x300mm, editable template)
 
 DLQ + replay requirement
+
+## User
+
+i dont get it, you say an 0) Important mismatch to correct (Category + Species tenantId) and tell Copilot this correction in the next phase. how should I do that?
+
+## Assistant
+
+Good question — this part can indeed be confusing. Let me explain simply and concretely what to do.
+
+You do not need to manually correct Copilot’s summary anywhere right now.
+
+Instead, you will include the correction inside the next prompt you send to Copilot. That prompt becomes the source of truth override.
+
+What you should do
+
+When you start PHASE 3, just paste this prompt into Copilot exactly as written:
+
+🟦 PHASE 3 — IMPLEMENTATION PLANNING (NO CODE YET)
+
+We are building using Spec-Driven Platform V6 STRICTEST.
+
+1) Re-read:
+- docs/PRODUCT.md
+- docs/MODULE_REGISTRY.md
+- docs/PERMISSION_REGISTRY.md
+- docs/ENTITY_REGISTRY.md
+- docs/modules/fms/PRODUCT.md
+- docs/modules/vms/PRODUCT.md
+- docs/modules/bluesentinel/PRODUCT.md
+- docs/CHANGELOG_AI.md
+- docs/IMPLEMENTATION_MAP.md
+
+2) IMPORTANT CORRECTION (treat this as source of truth):
+
+Category:
+- global seed data
+- no tenantId
+
+Species:
+- tenantId nullable
+- global seed initially
+- tenant overrides allowed later
+
+Barangay:
+- tenant-aware schema
+- optional tenantId
+- seed Calapan City list globally
+
+3) Produce an IMPLEMENTATION_MAP plan and write it to docs/IMPLEMENTATION_MAP.md.
+
+The plan must map:
+
+Entities → Prisma models  
+Workflows → NestJS modules/controllers/services  
+Screens → Next.js routes/pages  
+Permissions → guards/policies  
+Tenancy → subdomain middleware  
+Uploads → MinIO + MediaObject + BullMQ optimization  
+Queues → media-optimization, export-jobs, id-print-jobs  
+ID Printing → template storage + print job + PDF output
+
+4) Update docs/CHANGELOG_AI.md with today's date and summarize the implementation plan.
+
+Do NOT generate application code yet.
+Only update:
+- docs/IMPLEMENTATION_MAP.md
+- docs/CHANGELOG_AI.md
+Why this works
+
+Copilot previously summarized:
+
+Category + Species = global seed (no tenantId)
+
+But your ENTITY_REGISTRY.md actually says:
+
+Species:
+tenantId nullable
+
+So we simply override that interpretation in the next prompt.
+
+This is normal in spec-driven development: the next phase prompt can clarify anything.
+
+What should happen next
+
+After you paste the PHASE 3 prompt, Copilot should generate:
+
+docs/IMPLEMENTATION_MAP.md
+docs/CHANGELOG_AI.md
+
+This file will outline things like:
+
+Prisma models for every entity
+
+NestJS modules (fms, vms)
+
+Next.js routes
+
+upload pipeline
+
+worker queues
+
+ID printing flow
+
+RBAC guards
+
+tenant middleware
+
+After Copilot generates those files
+
+Paste the output here.
+
+I will quickly verify that it did not break any of your architecture, especially:
+
+Fisherfolk unique name constraints
+
+merge lineage fields
+
+tenantId filtering
+
+FMS → VMS dependency
+
+image optimization pipeline
+
+ID printing (4 records, 200×300mm)
+
+This is the step where most AI scaffolding mistakes happen, so checking it is worth it.
 
