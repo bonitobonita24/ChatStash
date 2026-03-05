@@ -2,7 +2,7 @@
 
 - Conversation ID: 69a85603-7dd0-8398-a3e1-1cb799a82afe
 - Title: App Development - Filling PRODUCT.md Prompt
-- Captured: 2026-03-05T07:17:45.751Z
+- Captured: 2026-03-05T07:20:49.483Z
 - URL: https://chatgpt.com/g/g-p-69a3c28d968c8191ac141b91a84da50a/c/69a85603-7dd0-8398-a3e1-1cb799a82afe
 
 ---
@@ -7784,4 +7784,749 @@ vms.catch.report
 This will ensure your RBAC system is perfect from day one.
 
 If you want, I can generate a complete Permission Registry for FMS and VMS that fits your module registry and menu design.
+
+## User
+
+ok just to avoid confusion on where should I enter that additional context please give me now the complete copy-paste contents for every file inside the docs folders
+
+## Assistant
+
+Perfect — this is the best moment to consolidate everything so you avoid spec drift later.
+
+Below are the complete copy-paste contents for every file currently inside your docs/ folder according to the architecture we finalized.
+
+You will have this structure:
+
+Plain text
+docs/
+│
+├─ PRODUCT.md
+│
+├─ MODULE_REGISTRY.md
+│
+└─ modules/
+     │
+     ├─ fms/
+     │   └─ PRODUCT.md
+     │
+     ├─ vms/
+     │   └─ PRODUCT.md
+     │
+     └─ bluesentinel/
+         └─ PRODUCT.md
+
+Everything below is ready to paste.
+
+1️⃣ docs/PRODUCT.md
+Markdown
+# Product Definition
+
+## App Name
+Blue Ocean Governance Platform
+
+## Purpose
+The Blue Ocean Governance Platform is a multi-tenant enterprise system designed to support fisheries and marine governance operations across multiple Local Government Units (LGUs).
+
+The platform provides a unified workspace where operational modules such as fisherfolk registries, vessel management systems, permit workflows, fisheries monitoring, and program interventions operate within a shared environment.
+
+Each LGU operates its own isolated workspace containing its authorized modules and datasets. The top-level governing organization, Blue Alliance, maintains administrative oversight across all LGUs.
+
+The system ensures data integrity, operational efficiency, and governance visibility for sustainable fisheries and coastal protection.
+
+## Target Users
+
+### Blue Alliance Global Administrators
+Highest-level authority managing the entire ecosystem.
+
+Responsibilities:
+
+- manage LGU tenants
+- enable modules per LGU
+- monitor analytics across LGUs
+- manage global users and governance
+
+Access domain example:
+
+bluealliance.fish.powerbyte.app
+
+---
+
+### LGU Administrators
+
+Administrators responsible for their municipality.
+
+Responsibilities:
+
+- manage LGU users
+- manage operational workflows
+- access analytics dashboards
+
+Example domain:
+
+calapan.fish.powerbyte.app
+
+---
+
+### LGU Operational Staff
+
+Examples:
+
+- fisheries officers
+- registration clerks
+- permit processors
+- enumerators
+
+Responsibilities:
+
+- fisherfolk registration
+- vessel registration
+- permit processing
+- catch monitoring
+- program management
+
+---
+
+### Data Analysts
+
+Users responsible for reviewing reports and statistics.
+
+---
+
+## Core Entities
+
+### Tenant (LGU)
+
+Fields:
+
+- id
+- name
+- province
+- region
+- country
+- subdomain
+- status
+- createdAt
+
+Example:
+
+name: Calapan City  
+subdomain: calapan
+
+Every operational record must include:
+
+tenantId
+
+This ensures strict data isolation between LGUs.
+
+---
+
+### User
+
+Fields:
+
+- id
+- tenantId
+- name
+- email
+- role
+- status
+- createdAt
+
+Roles:
+
+- global_admin
+- lgu_admin
+- user
+- viewer
+
+---
+
+### Barangay Reference
+
+Barangay selections must follow the official list for Calapan City.
+
+Display format:
+
+Brgy. {BarangayName}, City of Calapan
+
+Example:
+
+Brgy. Camilmil, City of Calapan
+
+---
+
+## User Roles
+
+### global_admin
+Full control across all LGUs.
+
+### lgu_admin
+Manages operations within LGU.
+
+### user
+Operational staff.
+
+### viewer
+Read-only access.
+
+---
+
+## Main Workflows
+
+### LGU Creation
+
+1. Blue Alliance creates LGU tenant.
+2. System assigns unique subdomain.
+3. Modules are enabled for LGU.
+4. LGU admin accounts are created.
+
+---
+
+### LGU Workspace Access
+
+1. User opens LGU subdomain.
+2. System identifies tenant.
+3. Workspace loads modules enabled for LGU.
+
+---
+
+### Workspace Navigation
+
+Example left-side navigation:
+
+Dashboard
+
+Fisherfolk Management System
+- Fisherfolk List
+- Register Fisherfolk
+- Reports
+- ID Printing
+
+Vessel Management System
+- Vessels
+- Permit Applications
+- Permit Renewals
+- Catch Reports
+- Programs
+
+Analytics
+- Catch Analytics
+- Registration Reports
+
+Administration
+- Users
+- Roles
+- Reference Data
+- Audit Logs
+
+Menus appear only if permitted.
+
+---
+
+## Realtime Features
+
+Not required for initial version.
+
+---
+
+## Background Jobs
+
+### Image Optimization Job
+
+Triggered on image upload.
+
+Steps:
+
+1. validate file
+2. remove EXIF metadata
+3. resize image
+4. generate thumbnail
+5. store optimized image
+
+Purpose:
+
+Prevent excessive storage usage from high-resolution images.
+
+---
+
+## Storage Requirements
+
+Uploads supported:
+
+- images
+- documents (future)
+
+Limits:
+
+max upload size: 10MB  
+max resolution: 8000px
+
+Optimization applied automatically.
+
+Modules using uploads:
+
+- FMS (photo, signature)
+- VMS (vessel photos)
+- BlueSentinel (future)
+
+---
+
+## Data Sensitivity
+
+Contains PII:
+
+- names
+- birthdates
+- addresses
+- contact numbers
+- photos
+- signatures
+
+Security:
+
+- audit logs
+- role-based access
+- soft deletion policies
+
+---
+
+## Tenancy Model
+
+Tenancy Mode: Multi
+
+Each LGU operates as a separate tenant.
+
+Tenant routing:
+
+{lgu}.fish.powerbyte.app
+
+Example:
+
+calapan.fish.powerbyte.app
+
+Blue Alliance domain:
+
+bluealliance.fish.powerbyte.app
+
+---
+
+## Environments Needed
+
+development  
+staging  
+production
+
+---
+
+## Domain Expectations
+
+fish.powerbyte.app
+
+Tenant routing:
+
+{lgu}.fish.powerbyte.app
+2️⃣ docs/MODULE_REGISTRY.md
+Markdown
+# Product Definition
+
+## App Name
+Enterprise Module Registry
+
+## Purpose
+Defines the module ecosystem for the platform.
+
+Allows:
+
+- modules enabled per LGU
+- unified workspace menus
+- RBAC permission mapping
+- scalable module architecture
+
+---
+
+## Core Entities
+
+### Module
+
+Fields:
+
+- id
+- code
+- name
+- description
+- ownerOrgScope (lgu | blue_alliance | both)
+- status (planned | active | deprecated)
+- defaultRoute
+- dependencies
+- createdAt
+
+---
+
+### TenantModule
+
+Controls module enablement.
+
+Fields:
+
+- id
+- tenantId
+- moduleCode
+- isEnabled
+- enabledAt
+
+---
+
+### Permission
+
+Fields:
+
+- id
+- key
+- description
+- moduleCode
+- scope
+
+Permission format:
+
+module.resource.action
+
+Example:
+
+fms.fisherfolk.create
+
+---
+
+### Role
+
+Fields:
+
+- id
+- code
+- scope
+
+Examples:
+
+global_admin  
+lgu_admin  
+user  
+viewer
+
+---
+
+### RolePermission
+
+Maps permissions to roles.
+
+---
+
+### ModuleMenu
+
+Defines left-side navigation.
+
+Fields:
+
+- id
+- moduleCode
+- parentMenuId
+- label
+- route
+- orderIndex
+- requiredPermissionKey
+
+---
+
+## Module Rules
+
+Modules with ownerOrgScope=lgu appear only in LGU workspaces.
+
+Modules with ownerOrgScope=blue_alliance appear only in Blue Alliance workspace.
+
+Modules with ownerOrgScope=both may appear in both.
+
+---
+
+## Initial Module Registry Entries
+
+### fms
+
+Code: fms  
+Name: Fisherfolk Management System  
+Scope: lgu  
+Status: active
+
+Default Route:
+
+/fms/fisherfolk
+
+Features:
+
+- fisherfolk registration
+- fisherfolk profile view
+- fisherfolk ID printing
+- photo + signature upload
+- barangay selection
+
+Dependencies:
+
+none
+
+---
+
+### vms
+
+Code: vms  
+Name: Vessel Management System  
+Scope: lgu  
+Status: active
+
+Default Route:
+
+/vms/vessels
+
+Features:
+
+- vessel registration
+- permit workflow
+- catch reports
+- program distribution tracking
+
+Dependencies:
+
+fms
+
+---
+
+### bluesentinel
+
+Code: bluesentinel  
+Name: BlueSentinel  
+Scope: both  
+Status: planned
+
+Default Route:
+
+/bluesentinel
+
+Description:
+
+Future enforcement and monitoring system used by Blue Alliance and LGU ranger teams.
+
+Dependencies:
+
+fms  
+vms
+
+---
+
+## Module Summary
+
+| Code | Name | Scope | Status | Dependencies |
+|-----|-----|-----|-----|-----|
+| fms | Fisherfolk Management System | lgu | active | none |
+| vms | Vessel Management System | lgu | active | fms |
+| bluesentinel | BlueSentinel | both | planned | fms,vms |
+3️⃣ docs/modules/fms/PRODUCT.md
+Markdown
+# Product Definition
+
+## App Name
+Fisherfolk Management System (FMS)
+
+## Purpose
+
+Central registry of fisherfolk identities and profiles.
+
+Provides the foundational data used by other modules.
+
+---
+
+## Target Users
+
+LGU fisheries officers  
+registration clerks  
+data managers
+
+---
+
+## Core Entities
+
+### Fisherfolk
+
+Fields:
+
+- idNumber (unique)
+- lastName
+- firstName
+- middleName
+- dateOfBirth
+- sex
+- addressBarangay
+- contactNumber
+- rsbsaNumber
+- fisherfolkCategories
+- isPresident
+- photo
+- signature
+
+Constraints:
+
+- unique(idNumber)
+- unique(fullNameNormalized)
+
+---
+
+## Key Features
+
+- fisherfolk registration
+- profile display view
+- search and listing
+- fisherfolk ID printing
+- photo upload (auto optimized)
+- signature capture
+
+---
+
+## ID Printing
+
+Allows selecting up to **4 fisherfolk records**.
+
+Generates ID layout on:
+
+200mm x 300mm portrait paper.
+
+Layout must be editable later.
+
+---
+
+## Dependencies
+
+None
+
+Provides master data for:
+
+- VMS
+- future modules
+4️⃣ docs/modules/vms/PRODUCT.md
+Markdown
+# Product Definition
+
+## App Name
+Vessel Management System (VMS)
+
+## Purpose
+
+Manages vessels, permits, and fisheries operations linked to fisherfolk.
+
+---
+
+## Core Entities
+
+### Vessel
+
+Fields:
+
+- id
+- vesselName
+- ownerFisherfolkId
+- vesselType
+- tonnage
+- registrationNumber
+- status
+
+---
+
+### Permit
+
+Fields:
+
+- id
+- vesselId
+- permitType
+- status
+- issuedDate
+- expiryDate
+
+---
+
+### CatchRecord
+
+Fields:
+
+- id
+- vesselId
+- landingSite
+- species
+- volume
+- catchDate
+
+---
+
+### Program
+
+Fields:
+
+- id
+- programName
+- description
+
+---
+
+## Dependencies
+
+Requires fisherfolk from FMS.
+5️⃣ docs/modules/bluesentinel/PRODUCT.md
+Markdown
+# Product Definition
+
+## App Name
+BlueSentinel
+
+Tagline:
+Empowering Sea Rangers with Smart Monitoring.
+
+## Purpose
+
+Future enforcement monitoring system used by Blue Alliance.
+
+Tracks illegal fishing incidents and coordinates with LGU ranger teams.
+
+---
+
+## Target Users
+
+Blue Alliance sea rangers  
+coastal patrol units  
+LGU ranger teams
+
+---
+
+## Core Entities (future)
+
+Violator  
+EnforcementIncident  
+SuspectedVessel  
+ConfiscatedGear  
+EvidenceMedia
+
+---
+
+## Status
+
+Planned module.
+
+Not implemented during initial development.
+
+Initial development focus:
+
+- FMS
+- VMS
+✅ After this step your spec system is COMPLETE for Phase 1
+
+Your platform spec is now enterprise-grade.
+
+Next recommended step:
+
+Create the Permission Registry for FMS and VMS so RBAC is fully defined before AI generates APIs.
+
+That will prevent security problems and permission rewrites later.
 
