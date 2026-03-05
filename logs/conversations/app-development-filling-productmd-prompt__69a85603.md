@@ -2,7 +2,7 @@
 
 - Conversation ID: 69a85603-7dd0-8398-a3e1-1cb799a82afe
 - Title: App Development - Filling PRODUCT.md Prompt
-- Captured: 2026-03-05T06:56:24.204Z
+- Captured: 2026-03-05T06:59:27.217Z
 - URL: https://chatgpt.com/g/g-p-69a3c28d968c8191ac141b91a84da50a/c/69a85603-7dd0-8398-a3e1-1cb799a82afe
 
 ---
@@ -5653,4 +5653,376 @@ Blue Alliance can request assistance from a specific LGU and LGU rangers can res
 LGU users cannot see other LGUs’ data unless assigned via BlueSentinel collaboration rules
 
 If you want, I can also generate a BlueSentinel future module stub PRODUCT.md (very lightweight, marked “future”), so your platform already has a placeholder menu and tenancy rules—but with no implementation required now.
+
+## User
+
+yes please do that because everything I told you about blueSentinel app is not final and everything that need to be implemented will be focusing after the fisherfolks and vessels modules
+
+## Assistant
+
+Excellent decision 👍
+Creating a future module stub is exactly what mature spec-driven platforms do. It lets your architecture prepare for BlueSentinel without forcing development now.
+
+This stub will:
+
+reserve the module name
+
+define the scope
+
+define tenancy rules
+
+document possible entities
+
+prevent AI from generating it prematurely
+
+It will live here:
+
+docs/modules/bluesentinel/PRODUCT.md
+
+And it will clearly state future implementation.
+
+docs/modules/bluesentinel/PRODUCT.md
+Product Definition
+App Name
+
+BlueSentinel
+
+Tagline:
+
+Empowering Sea Rangers with Smart Monitoring.
+
+Purpose
+
+BlueSentinel is a future governance and enforcement application developed for Blue Alliance to support marine and coastal protection operations.
+
+The system will allow Blue Alliance and collaborating LGU ranger teams to monitor and document illegal fishing activities, record enforcement incidents, and coordinate responses across multiple LGUs.
+
+BlueSentinel operates as part of the Blue Ocean Governance Platform and is designed to integrate with data from operational modules such as the Fisherfolk Management System (FMS) and Vessel Management System (VMS).
+
+Unlike LGU operational modules, BlueSentinel may track both:
+
+registered fisherfolk
+
+non-registered individuals involved in marine violations
+
+This module is not part of the initial development phase and will be implemented in later phases after the core LGU modules are stable.
+
+Target Users
+Blue Alliance Enforcement Teams
+
+Examples:
+
+sea rangers
+
+coastal patrol units
+
+marine protection officers
+
+Responsibilities:
+
+monitor illegal fishing activities
+
+record violations
+
+coordinate with LGU ranger teams
+
+LGU Ranger Units
+
+LGU enforcement teams that assist Blue Alliance during operations.
+
+Responsibilities:
+
+respond to enforcement requests
+
+record incidents within LGU jurisdiction
+
+provide local patrol reports
+
+Core Entities (Future)
+
+These entities are placeholders and may change during actual implementation.
+
+Violator
+
+Represents a person suspected or confirmed to be involved in illegal fishing.
+
+Possible fields:
+
+id
+
+name
+
+alias
+
+nationality
+
+contact information
+
+notes
+
+photo (optional)
+
+Violators may or may not exist in FMS.
+
+EnforcementIncident
+
+Represents an illegal fishing event or enforcement case.
+
+Possible fields:
+
+id
+
+incidentDate
+
+location
+
+description
+
+status
+
+reportingOfficer
+
+tenantId (LGU jurisdiction if applicable)
+
+SuspectedVessel
+
+Optional vessel involved in the incident.
+
+Possible fields:
+
+id
+
+vesselName
+
+registrationNumber
+
+vesselType
+
+notes
+
+May reference VMS vessel records if registered.
+
+ConfiscatedGear
+
+Fishing gear used in illegal activity.
+
+Possible fields:
+
+id
+
+gearType
+
+quantity
+
+notes
+
+EvidenceMedia
+
+Media captured during enforcement.
+
+Examples:
+
+photos
+
+videos
+
+documents
+
+User Roles
+
+BlueSentinel roles operate alongside the platform roles.
+
+blue_admin
+
+Full access to enforcement data across all LGUs.
+
+blue_operator
+
+Create and manage incidents.
+
+lgu_ranger
+
+Respond to incidents assigned to their LGU.
+
+lgu_ranger_lead
+
+Manage LGU ranger teams and coordinate enforcement activities.
+
+Main Workflows (Future)
+Incident Reporting
+
+Enforcement officer records an incident.
+
+System captures incident details.
+
+Evidence may be attached.
+
+Incident is assigned to Blue Alliance or LGU teams.
+
+Assistance Request
+
+Blue Alliance creates enforcement request.
+
+System assigns request to one or more LGUs.
+
+LGU ranger teams receive notification.
+
+LGU rangers respond and upload incident updates.
+
+Incident Investigation
+
+Officers review evidence and incident reports.
+
+Suspected violators and vessels are recorded.
+
+Incident status updated until closure.
+
+Realtime Features (Future)
+
+Potential realtime features may include:
+
+patrol activity updates
+
+enforcement alerts
+
+incident notifications
+
+Realtime is not required for the initial version.
+
+Background Jobs (Future)
+
+Possible background jobs:
+
+Evidence Processing
+
+image optimization
+
+media validation
+
+metadata extraction
+
+Storage Requirements
+
+Expected uploads:
+
+incident photos
+
+videos
+
+documents
+
+Files should follow the global media optimization policy of the platform:
+
+metadata removal
+
+size reduction
+
+variant generation
+
+Data Sensitivity
+
+BlueSentinel may store sensitive data including:
+
+personal details of suspected violators
+
+enforcement reports
+
+photographic evidence
+
+Access must be restricted to authorized enforcement users.
+
+Audit logging is mandatory.
+
+Tenancy Model
+
+BlueSentinel supports dual-scope tenancy.
+
+Global Scope
+
+Blue Alliance users can access incidents across all LGUs.
+
+Example access domain:
+
+bluealliance.fish.powerbyte.app
+LGU Scope
+
+LGU ranger teams can access incidents relevant to their jurisdiction.
+
+Example access domain:
+
+{lgu}.fish.powerbyte.app
+
+LGU users can only see:
+
+incidents belonging to their LGU
+
+incidents shared with their LGU by Blue Alliance.
+
+Environments Needed
+development
+staging
+production
+Domain / Base URL Expectations
+
+BlueSentinel runs inside the same multi-tenant domain structure.
+
+Examples:
+
+bluealliance.fish.powerbyte.app/bluesentinel
+calapan.fish.powerbyte.app/bluesentinel
+Development Priority
+
+BlueSentinel is a future module.
+
+Development phases:
+
+Phase 1 (current focus)
+
+LGU operational systems
+
+FMS
+
+VMS
+
+Phase 2
+
+Analytics dashboards.
+
+Phase 3
+
+BlueSentinel enforcement system.
+
+Important Implementation Note
+
+This module should not be generated automatically by AI agents during initial builds.
+
+Development should only begin once the following modules are stable:
+
+FMS
+VMS
+
+✅ This stub now:
+
+reserves BlueSentinel
+
+defines global + LGU collaboration
+
+avoids premature development
+
+fits your spec-driven architecture
+
+One architectural tip before we proceed
+
+Your platform is evolving into something much bigger than just LGU systems.
+
+It is becoming a Marine Governance Platform.
+
+Soon you may want to organize modules into three groups:
+
+Layer	Examples
+LGU Operations	FMS, VMS
+Governance	BlueSentinel
+Analytics	Command Center
+
+If you want, I can show you a clean Module Registry design that will make your platform support 20+ apps later without breaking architecture.
 
