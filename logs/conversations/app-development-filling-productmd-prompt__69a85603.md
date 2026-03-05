@@ -2,7 +2,7 @@
 
 - Conversation ID: 69a85603-7dd0-8398-a3e1-1cb799a82afe
 - Title: App Development - Filling PRODUCT.md Prompt
-- Captured: 2026-03-05T07:29:59.542Z
+- Captured: 2026-03-05T07:33:02.889Z
 - URL: https://chatgpt.com/g/g-p-69a3c28d968c8191ac141b91a84da50a/c/69a85603-7dd0-8398-a3e1-1cb799a82afe
 
 ---
@@ -9400,4 +9400,439 @@ These specs now include:
 Which is exactly what the AI generator needs.
 
 If you'd like, the next extremely valuable step would be creating the ENTITY_REGISTRY.md, which defines the database schema for FMS and VMS so your database design becomes stable before the AI starts coding.
+
+## User
+
+yes please do it now. thanks
+
+## Assistant
+
+Create this file:
+
+Plain text
+docs/ENTITY_REGISTRY.md
+
+Then paste everything below. This is the complete, detailed entity registry for your current Phase 1 focus: FMS + VMS (and shared reference data), aligned with your ecosystem: multi-LGU tenancy, subdomains, module menus, RBAC, image optimization, Calapan barangay list, and FMS ID printing.
+
+Markdown
+# Product Definition
+
+## App Name
+Entity Registry (FMS + VMS)
+
+## Purpose
+Defines the canonical data model for the Blue Ocean Governance Platform for Phase 1 modules:
+
+- Fisherfolk Management System (FMS)
+- Vessel Management System (VMS)
+
+This registry stabilizes schema and relationships before implementation.
+
+All tenant-owned entities MUST include `tenantId` and enforce tenant isolation.
+
+---
+
+## Target Users
+- Developers and system maintainers
+- global_admin and lgu_admin stakeholders validating scope
+- AI spec-driven generators (schema/API/UI generation)
+
+---
+
+## Core Entities
+
+# A) Platform / Tenancy
+
+## Entity: Tenant (LGU)
+Fields:
+- id (UUID)
+- name (string)
+- province (string, optional)
+- region (string, optional)
+- country (string, default "Philippines")
+- subdomain (string, unique, lowercase)
+- status (enum: active | inactive)
+- createdAt (datetime)
+- updatedAt (datetime)
+
+Constraints:
+- unique(subdomain)
+
+Indexes:
+- (status)
+
+---
+
+## Entity: User
+Note: User auth is via Keycloak, but app keeps a local user profile for RBAC and auditing.
+
+Fields:
+- id (UUID)
+- tenantId (UUID, nullable for global_admin)
+- email (string, unique)
+- displayName (string)
+- status (enum: active | disabled)
+- createdAt (datetime)
+- updatedAt (datetime)
+
+Indexes:
+- (tenantId)
+- (status)
+
+---
+
+## Entity: Role
+Fields:
+- id (UUID)
+- code (string, unique)  // global_admin, lgu_admin, user, viewer, etc.
+- scope (enum: global | lgu)
+- createdAt (datetime)
+
+---
+
+## Entity: Permission
+Fields:
+- id (UUID)
+- key (string, unique)   // module.resource.action
+- moduleCode (string)    // fms, vms, bluesentinel
+- scope (enum: global | lgu | both)
+- description (text)
+- createdAt (datetime)
+
+Indexes:
+- (moduleCode)
+
+---
+
+## Entity: RolePermission
+Fields:
+- id (UUID)
+- roleCode (string)
+- permissionKey (string)
+- createdAt (datetime)
+
+Constraints:
+- unique(roleCode, permissionKey)
+
+---
+
+## Entity: UserRole
+Fields:
+- id (UUID)
+- userId (UUID)
+- tenantId (UUID, nullable for global roles)
+- roleCode (string)
+- createdAt (datetime)
+
+Constraints:
+- unique(userId, tenantId, roleCode)
+
+Indexes:
+- (tenantId)
+
+---
+
+## Entity: AuditLog
+Fields:
+- id (UUID)
+- tenantId (UUID, nullable for global scope events)
+- actorUserId (UUID)
+- action (string) // create|update|delete|merge|deactivate|reactivate|export|print|role_change|enable_module
+- entityType (string)
+- entityId (UUID or string)
+- beforeJson (json, nullable)
+- afterJson (json, nullable)
+- createdAt (datetime)
+- ipAddress (string, optional)
+- userAgent (string, optional)
+
+Indexes:
+- (tenantId, createdAt)
+- (actorUserId, createdAt)
+- (entityType, entityId)
+
+---
+
+# B) Shared Reference Data (Phase 1)
+
+## Entity: Barangay
+Scope: tenant-shared reference data. (Initially fixed to Calapan City list; later may be per tenant.)
+
+Fields:
+- id (UUID)
+- city (string, default "Calapan City")
+- name (string)
+- isActive (boolean, default true)
+- createdAt (datetime)
+
+Constraints:
+- unique(city, name)
+
+Indexes:
+- (isActive)
+
+Allowed values for Calapan City (seed list):
+Balingayan, Balite, Baruyan, Batino, Bayanan I, Bayanan II, Biga, Bondoc, Bucayao, Buhuan, Bulusan, Sta. Rita, Calero, Camansihan, Camilmil, Canubing I, Canubing II, Comunal, Guinobatan, Gulod, Gutad, Ibaba East, Ibaba West, Ilaya, Lalud, Lazareto, Libis, Lumangbayan, Mahal Na Pangalan, Maidlang, Malad, Malamig, Managpi, Masipit, Nag-Iba I, Navotas, Pachoca, Palhi, Panggalaan, Parang, Patas, Personas, Puting Tubig, Salong, San Antonio, San Vicente Central, San Vicente East, San Vicente North, San Vicente South, San Vicente West, Sta. Cruz, Sta. Isabel, Sto. Niño, Sapul, Silonay, Sta. Maria Village, Suqui, Tawagan, Tawiran, Tibag, Wawa, Nag-Iba II
+
+Display format everywhere:
+Brgy. {BarangayName}, City of Calapan
+
+---
+
+## Entity: Category (Fisherfolk Category Type)
+Fields:
+- id (UUID)
+- code (string, unique)
+- name (string, unique)
+- isActive (boolean, default true)
+- createdAt (datetime)
+
+Seed values:
+- BOAT_OWNER_OPERATOR
+- CAPTURE_FISHING
+- GLEANING
+- VENDOR
+- FISH_PROCESSING
+- AQUACULTURE
+
+Display names:
+- Boat Owner/Operator
+- Capture Fishing
+- Gleaning
+- Vendor
+- Fish Processing
+- Aquaculture
+
+---
+
+# C) Media / Uploads (Global Pattern)
+
+## Entity: MediaObject
+Purpose: canonical record for uploaded files and optimized variants.
+
+Fields:
+- id (UUID)
+- tenantId (UUID)
+- bucket (string)
+- objectKey (string)
+- mimeType (string)
+- sizeBytes (int)
+- checksum (string, optional)
+- purpose (enum: fisherfolk_photo | fisherfolk_signature | idprint_export | vessel_photo | permit_attachment | other)
+- variant (enum: original | display | thumb)
+- parentMediaObjectId (UUID, nullable) // link variants to original
+- processingStatus (enum: pending | processing | ready | failed)
+- createdByUserId (UUID)
+- createdAt (datetime)
+
+Constraints:
+- unique(bucket, objectKey)
+
+Indexes:
+- (tenantId, createdAt)
+- (tenantId, purpose)
+- (parentMediaObjectId)
+- (processingStatus)
+
+Global optimization rules:
+- strip EXIF
+- enforce max size 10MB and max dimension 8000px
+- generate UI variants:
+  - thumb (list/table)
+  - display (profile/view)
+- default UI uses optimized variants (thumb/display), not original
+- originals are optional (configurable later)
+
+---
+
+# D) FMS Entities
+
+## Entity: Fisherfolk
+Fields:
+- id (UUID)
+- tenantId (UUID)
+- idNumber (string, unique per tenant)
+- lastName (string)
+- firstName (string)
+- middleName (string)
+- fullNameDisplay (string) // e.g., "DELA CRUZ, JUAN P"
+- fullNameNormalized (string) // used for uniqueness + search
+- dateOfBirth (date)
+- sex (enum: Male | Female)
+- addressCity (string, fixed "Calapan City")
+- barangayId (UUID, FK -> Barangay.id)
+- contactNumberE164 (string) // +639XXXXXXXXX
+- rsbsaNumber (string, unique per tenant)
+- isBarangayPresident (boolean, default false)
+- status (enum: active | inactive | merged | deceased | moved)
+- mergedIntoId (UUID, nullable FK -> Fisherfolk.id)
+- mergedAt (datetime, nullable)
+- mergeReason (text, nullable)
+- createdAt (datetime)
+- updatedAt (datetime)
+
+Constraints:
+- unique(tenantId, idNumber)
+- unique(tenantId, rsbsaNumber)
+- unique(tenantId, fullNameNormalized)
+
+Indexes:
+- (tenantId, barangayId)
+- (tenantId, status)
+- (tenantId, fullNameNormalized)
+
+Validation:
+- contactNumberE164 must match +63 then 9 then 9 digits (e.g., +639123456789)
+- addressCity is not user-editable
+- if mergedIntoId is set -> status must be merged and record read-only
+
+---
+
+## Entity: FisherfolkCategory
+Join table for fisherfolk multi-select category types.
+
+Fields:
+- id (UUID)
+- tenantId (UUID)
+- fisherfolkId (UUID, FK -> Fisherfolk.id)
+- categoryId (UUID, FK -> Category.id)
+- createdAt (datetime)
+
+Constraints:
+- unique(tenantId, fisherfolkId, categoryId)
+
+Indexes:
+- (tenantId, fisherfolkId)
+
+---
+
+## Entity: FisherfolkPhoto
+Fields:
+- id (UUID)
+- tenantId (UUID)
+- fisherfolkId (UUID, FK -> Fisherfolk.id)
+- mediaObjectId (UUID, FK -> MediaObject.id) // points to DISPLAY variant by default
+- capturedVia (enum: upload | camera)
+- createdAt (datetime)
+
+Constraints:
+- unique(tenantId, fisherfolkId)
+
+---
+
+## Entity: FisherfolkSignature
+Fields:
+- id (UUID)
+- tenantId (UUID)
+- fisherfolkId (UUID, FK -> Fisherfolk.id)
+- mediaObjectId (UUID, FK -> MediaObject.id) // points to DISPLAY variant by default
+- capturedVia (enum: upload | draw)
+- createdAt (datetime)
+
+Constraints:
+- unique(tenantId, fisherfolkId)
+
+---
+
+## Entity: IDPrintTemplate
+Editable template definition for FMS ID Printing.
+
+Fields:
+- id (UUID)
+- tenantId (UUID)
+- name (string)
+- pageWidthMm (int, default 200)
+- pageHeightMm (int, default 300)
+- orientation (enum: portrait)
+- templateJson (json) // layout definition (front/back, positions, fonts, images)
+- isDefault (boolean, default false)
+- version (int, default 1)
+- createdByUserId (UUID)
+- createdAt (datetime)
+- updatedAt (datetime)
+
+Constraints:
+- unique(tenantId, name)
+
+Indexes:
+- (tenantId, isDefault)
+
+---
+
+## Entity: IDPrintJob
+Represents an ID printing request selecting up to 4 fisherfolk records.
+
+Fields:
+- id (UUID)
+- tenantId (UUID)
+- requestedByUserId (UUID)
+- templateId (UUID, FK -> IDPrintTemplate.id)
+- status (enum: queued | processing | ready | failed)
+- resultFrontMediaId (UUID, nullable FK -> MediaObject.id)
+- resultBackMediaId (UUID, nullable FK -> MediaObject.id)
+- errorMessage (text, nullable)
+- createdAt (datetime)
+- updatedAt (datetime)
+
+Validation:
+- maxSelectedFisherfolk = 4
+
+---
+
+## Entity: IDPrintJobItem
+Selected fisherfolk records for a print job.
+
+Fields:
+- id (UUID)
+- tenantId (UUID)
+- printJobId (UUID, FK -> IDPrintJob.id)
+- fisherfolkId (UUID, FK -> Fisherfolk.id)
+- slotIndex (int) // 1..4
+- createdAt (datetime)
+
+Constraints:
+- unique(tenantId, printJobId, slotIndex)
+- unique(tenantId, printJobId, fisherfolkId)
+
+---
+
+# E) VMS Entities (Phase 1)
+
+## Entity: Vessel
+Fields:
+- id (UUID)
+- tenantId (UUID)
+- registrationNumber (string) // unique per tenant
+- name (string, optional)
+- ownerFisherfolkId (UUID, FK -> Fisherfolk.id)
+- barangayId (UUID, FK -> Barangay.id, optional) // denormalized for reporting if needed
+- vesselType (string) // controlled list later
+- hullMaterial (string, optional)
+- lengthM (decimal, optional)
+- widthM (decimal, optional)
+- grossTonnage (decimal, optional)
+- engineType (string, optional)
+- engineHp (decimal, optional)
+- status (enum: active | inactive | sold | scrapped)
+- createdAt (datetime)
+- updatedAt (datetime)
+
+Constraints:
+- unique(tenantId, registrationNumber)
+
+Indexes:
+- (tenantId, ownerFisherfolkId)
+- (tenantId, status)
+
+---
+
+## Entity: PermitType (reference)
+Fields:
+- id (UUID)
+- tenantId (UUID) // allow per-LGU configs
+- code (string)
+- name (string)
+- validityMonths (int)
+- isActive (boolean, default true)
+- createdAt (datetime)
 
