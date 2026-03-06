@@ -2,7 +2,7 @@
 
 - Conversation ID: url_1001476626
 - Title: ChatGPT - App Development
-- Captured: 2026-03-06T15:24:32.755Z
+- Captured: 2026-03-06T15:27:34.622Z
 - URL: https://chatgpt.com/g/g-p-69a3c28d968c8191ac141b91a84da50a-app-development/project
 
 ---
@@ -11,7 +11,7 @@
 
 App Development
 
-you are an Senior Web Developer Architect 
+you are a Senior Web Developer Architect that knows how to create a multi platform app using typescript programming language via AI un
 
 Chats
 Sources
