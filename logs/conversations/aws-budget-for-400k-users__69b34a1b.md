@@ -2,7 +2,7 @@
 
 - Conversation ID: 69b34a1b-7930-839c-b641-859ca23ac2c7
 - Title: AWS Budget for 400k Users
-- Captured: 2026-03-13T13:19:25.489Z
+- Captured: 2026-03-13T13:22:27.898Z
 - URL: https://chatgpt.com/c/69b34a1b-7930-839c-b641-859ca23ac2c7
 
 ---
@@ -1460,4 +1460,8 @@ That full stack is what allows the platform to handle hundreds of thousands of u
 Monolithic vs Full Cloud Stack
 
 This will make the difference immediately obvious to non-technical clients.
+
+## User
+
+this not i want, the monolithic vs Full Stack im referring is the one you sent me with just an image
 
