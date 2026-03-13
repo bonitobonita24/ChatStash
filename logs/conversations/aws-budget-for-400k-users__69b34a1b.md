@@ -2,7 +2,7 @@
 
 - Conversation ID: 69b34a1b-7930-839c-b641-859ca23ac2c7
 - Title: AWS Budget for 400k Users
-- Captured: 2026-03-13T11:57:18.051Z
+- Captured: 2026-03-13T12:00:20.271Z
 - URL: https://chatgpt.com/c/69b34a1b-7930-839c-b641-859ca23ac2c7
 
 ---
@@ -1136,4 +1136,8 @@ RDS	persistent database
 Compute (EC2) is not the main cost in streaming platforms.
 
 If you'd like, I can also make a second table showing the cheapest possible setup (~$120-$180/month) and a large-scale setup for 1M users, so you can see how the architecture evolves.
+
+## User
+
+my client cant understand what it means for just a server and what we need is a whole package to run and manager services and not only server, can you give me a presentation or 1 image to understand that?
 
