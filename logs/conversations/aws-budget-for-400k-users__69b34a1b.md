@@ -2,7 +2,7 @@
 
 - Conversation ID: 69b34a1b-7930-839c-b641-859ca23ac2c7
 - Title: AWS Budget for 400k Users
-- Captured: 2026-03-13T11:39:03.354Z
+- Captured: 2026-03-13T11:42:06.386Z
 - URL: https://chatgpt.com/c/69b34a1b-7930-839c-b641-859ca23ac2c7
 
 ---
@@ -887,4 +887,8 @@ How Netflix-style platforms actually scale to millions of users
 How to cut this to $80/month using serverless
 
 The exact S3 + CloudFront video pipeline used by streaming startups (much cheaper than people think).
+
+## User
+
+can you make it a little bit higher like a medium size server, with auto scaling for 2-5 server that's correct you suggested. but the server will serve movie streaming and social media app
 
