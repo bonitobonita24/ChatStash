@@ -2,7 +2,7 @@
 
 - Conversation ID: 69be2c87-f7f4-8322-8758-11bade0d5bc9
 - Title: DevOps - CopilotKit Repo Explanation
-- Captured: 2026-03-21T09:18:12.960Z
+- Captured: 2026-03-21T09:21:17.707Z
 - URL: https://chatgpt.com/g/g-p-69be2c765b4c8191bdfe4002a1f09a53-devops/c/69be2c87-f7f4-8322-8758-11bade0d5bc9
 
 ---
