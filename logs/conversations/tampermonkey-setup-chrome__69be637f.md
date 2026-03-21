@@ -2,7 +2,7 @@
 
 - Conversation ID: 69be637f-b234-8322-913f-386cf1604e74
 - Title: Tampermonkey Setup Chrome
-- Captured: 2026-03-21T09:42:33.784Z
+- Captured: 2026-03-21T09:45:35.838Z
 - URL: https://chatgpt.com/c/69be637f-b234-8322-913f-386cf1604e74
 
 ---
@@ -1719,5 +1719,666 @@ JavaScript
     const m1 = p.match(/\/c\/([^\/?#]+)/i);
     if (m1 && m1[1]) return m1[1];
 
-    const m
+    const m2 = p.match(/\/chat\/([^\/?#]+)/i);
+    if (m2 && m2[1]) return m2[1];
+
+    return "url_" + simpleHash(location.href);
+  }
+
+  function getBestTitle() {
+    const platform = detectPlatform();
+
+    const titleFromDocument = (document.title || "")
+      .replace(/\s*-\s*ChatGPT\s*$/i, "")
+      .replace(/\s*-\s*Claude\s*$/i, "")
+      .trim();
+
+    if (
+      titleFromDocument &&
+      !/^chatgpt$/i.test(titleFromDocument) &&
+      !/^claude$/i.test(titleFromDocument)
+    ) {
+      return titleFromDocument;
+    }
+
+    const selectorsByPlatform = platform === "claudeai"
+      ? [
+          "main h1",
+          "header h1",
+          "[data-testid='chat-title']",
+          "[contenteditable='true']",
+          "title"
+        ]
+      : [
+          "main h1",
+          "header h1",
+          "nav a[aria-current='page']",
+          "[data-testid='conversation-title']"
+        ];
+
+    for (const sel of selectorsByPlatform) {
+      const el = document.querySelector(sel);
+      const text = (el?.textContent || "").trim();
+      if (text && !/^chatgpt$/i.test(text) && !/^claude$/i.test(text)) {
+        return text;
+      }
+    }
+
+    return platform === "claudeai" ? "Untitled Claude Chat" : "Untitled ChatGPT Chat";
+  }
+
+  function getOrLockTitle(convId, currentTitle) {
+    const locked = getLockedTitle(convId);
+    if (locked) return locked;
+
+    setLockedTitle(convId, currentTitle);
+    return currentTitle;
+  }
+
+  // =======================
+  // EXTRACT CONVERSATION
+  // =======================
+  function extractChatGPTMarkdown() {
+    const rawTitle = getBestTitle();
+    const convId = getConversationIdFromUrl();
+    const platform = detectPlatform();
+    const roleNodes = document.querySelectorAll("[data-message-author-role]");
+    const messages = [];
+
+    if (roleNodes && roleNodes.length) {
+      roleNodes.forEach((node) => {
+        const role = node.getAttribute("data-message-author-role") || "unknown";
+        const mdNode = node.querySelector(".markdown, .prose") || node;
+        const text = (mdNode.innerText || "").trim();
+        if (text) messages.push({ role, text });
+      });
+    } else {
+      const main = document.querySelector("main");
+      const text = main ? (main.innerText || "").trim() : "";
+      if (text) messages.push({ role: "conversation", text });
+    }
+
+    let md = `# Conversation Log\n\n`;
+    md += `- Platform: ${platform}\n`;
+    md += `- Conversation ID: ${convId}\n`;
+    md += `- Title: ${rawTitle}\n`;
+    md += `- Captured: ${nowISO()}\n`;
+    md += `- URL: ${location.href}\n\n---\n\n`;
+
+    if (!messages.length) {
+      md += `_No messages detected. The UI may have changed._\n`;
+      return { convId, title: rawTitle, md, platform };
+    }
+
+    for (const m of messages) {
+      const who =
+        m.role === "user" ? "User" :
+        m.role === "assistant" ? "Assistant" :
+        m.role ? m.role : "Unknown";
+
+      md += `## ${who}\n\n${m.text}\n\n`;
+    }
+
+    return { convId, title: rawTitle, md, platform };
+  }
+
+  function extractClaudeMarkdown() {
+    const rawTitle = getBestTitle();
+    const convId = getConversationIdFromUrl();
+    const platform = detectPlatform();
+    const messages = [];
+
+    const possibleMessageNodes = [
+      ...document.querySelectorAll('[data-testid*="message"]'),
+      ...document.querySelectorAll('[class*="message"]'),
+      ...document.querySelectorAll('main article'),
+      ...document.querySelectorAll('main section')
+    ];
+
+    const seen = new Set();
+
+    for (const node of possibleMessageNodes) {
+      const text = (node.innerText || "").trim();
+      if (!text) continue;
+      if (text.length < 10) continue;
+      if (seen.has(text)) continue;
+      seen.add(text);
+
+      let role = "message";
+      const lower = (node.getAttribute("data-testid") || "" + " " + (node.className || "")).toLowerCase();
+      if (lower.includes("user")) role = "user";
+      else if (lower.includes("assistant")) role = "assistant";
+
+      messages.push({ role, text });
+    }
+
+    if (!messages.length) {
+      const main = document.querySelector("main");
+      const text = main ? (main.innerText || "").trim() : "";
+      if (text) messages.push({ role: "conversation", text });
+    }
+
+    let md = `# Conversation Log\n\n`;
+    md += `- Platform: ${platform}\n`;
+    md += `- Conversation ID: ${convId}\n`;
+    md += `- Title: ${rawTitle}\n`;
+    md += `- Captured: ${nowISO()}\n`;
+    md += `- URL: ${location.href}\n\n---\n\n`;
+
+    if (!messages.length) {
+      md += `_No messages detected. The UI may have changed._\n`;
+      return { convId, title: rawTitle, md, platform };
+    }
+
+    for (const m of messages) {
+      const who =
+        m.role === "user" ? "User" :
+        m.role === "assistant" ? "Assistant" :
+        "Message";
+
+      md += `## ${who}\n\n${m.text}\n\n`;
+    }
+
+    return { convId, title: rawTitle, md, platform };
+  }
+
+  function extractConversationMarkdown() {
+    return detectPlatform() === "claudeai"
+      ? extractClaudeMarkdown()
+      : extractChatGPTMarkdown();
+  }
+
+  function buildMainFilePath(title, convId, platform) {
+    const shortId = convId.slice(0, 8);
+    const stableName = `${slugifyTitle(title)}__${shortId}__${platform}.md`;
+    return `${GH_PATH_PREFIX}/${stableName}`;
+  }
+
+  function buildSnapshotFilePath(title, convId, platform) {
+    const stamp = dateStamp();
+    const shortId = convId.slice(0, 8);
+    const snapName = `${stamp}__${slugifyTitle(title)}__${shortId}__${platform}.md`;
+    return `${GH_PATH_PREFIX}/${SNAPSHOT_SUBFOLDER}/${snapName}`;
+  }
+
+  // =======================
+  // GITHUB API
+  // =======================
+  function ghRequest(url, token, method = "GET", bodyObj = null) {
+    return new Promise((resolve, reject) => {
+      const headers = {
+        "Accept": "application/vnd.github+json",
+        "Authorization": `Bearer ${token}`,
+        "X-GitHub-Api-Version": "2022-11-28",
+      };
+
+      const data = bodyObj ? JSON.stringify(bodyObj) : null;
+
+      GM_xmlhttpRequest({
+        method,
+        url,
+        headers: {
+          ...headers,
+          ...(bodyObj ? { "Content-Type": "application/json" } : {})
+        },
+        data,
+        timeout: 30000,
+        onload: (res) => {
+          let parsed = null;
+          try {
+            parsed = res.responseText ? JSON.parse(res.responseText) : {};
+          } catch {
+            parsed = { raw: res.responseText };
+          }
+
+          if (res.status >= 200 && res.status < 300) {
+            resolve(parsed);
+          } else {
+            const msg = parsed && parsed.message ? parsed.message : `HTTP ${res.status}`;
+            reject(new Error(`GitHub API error: ${msg}`));
+          }
+        },
+        onerror: () => reject(new Error("Network error contacting GitHub")),
+        ontimeout: () => reject(new Error("Timeout contacting GitHub")),
+      });
+    });
+  }
+
+  async function getExistingFileMeta(token, path) {
+    const urlPath = encodeURIComponent(path).replace(/%2F/g, "/");
+    const url = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${urlPath}?ref=${encodeURIComponent(BRANCH)}`;
+
+    try {
+      const existing = await ghRequest(url, token, "GET");
+      return existing || null;
+    } catch (e) {
+      if (String(e.message).includes("Not Found")) return null;
+      throw e;
+    }
+  }
+
+  async function upsertFileToGitHub({ token, path, content, message }) {
+    const urlPath = encodeURIComponent(path).replace(/%2F/g, "/");
+    const baseUrl = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${urlPath}`;
+
+    const existing = await getExistingFileMeta(token, path);
+    const sha = existing && existing.sha ? existing.sha : null;
+
+    const payload = {
+      message,
+      content: b64encode(content),
+      branch: BRANCH,
+      ...(sha ? { sha } : {})
+    };
+
+    return ghRequest(baseUrl, token, "PUT", payload);
+  }
+
+  async function deleteFileFromGitHub({ token, path, message }) {
+    const urlPath = encodeURIComponent(path).replace(/%2F/g, "/");
+    const baseUrl = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${urlPath}`;
+
+    const existing = await getExistingFileMeta(token, path);
+    if (!existing || !existing.sha) return;
+
+    const payload = {
+      message,
+      sha: existing.sha,
+      branch: BRANCH
+    };
+
+    return ghRequest(baseUrl, token, "DELETE", payload);
+  }
+
+  async function testGitHubConnection() {
+    const token = getToken();
+    if (!token) {
+      toast("No GitHub token set.");
+      return;
+    }
+
+    try {
+      const url = `https://api.github.com/repos/${GH_OWNER}/${GH_REPO}`;
+      const repo = await ghRequest(url, token, "GET");
+      toast(`GitHub OK:\n${repo.full_name}`);
+    } catch (e) {
+      console.error(e);
+      toast(`GitHub test failed:\n${e.message}`, 5000);
+    }
+  }
+
+  // =======================
+  // SAVE ACTIONS
+  // =======================
+  let saving = false;
+
+  async function saveMainFile({ auto = false } = {}) {
+    if (saving) return;
+    saving = true;
+
+    try {
+      const token = getToken();
+      if (!token) {
+        toast("No GitHub token set.\nClick Set Token first.");
+        return;
+      }
+
+      const { convId, title, md, platform } = extractConversationMarkdown();
+      const hash = simpleHash(md);
+
+      if (auto && hash === getLastHash(convId)) return;
+
+      const lockedTitle = getOrLockTitle(convId, title);
+      const fullPath = getLockedPath(convId) || buildMainFilePath(lockedTitle, convId, platform);
+
+      await upsertFileToGitHub({
+        token,
+        path: fullPath,
+        content: md,
+        message: `${auto ? "Auto-save" : "Save"} conversation: ${lockedTitle}`
+      });
+
+      setLockedPath(convId, fullPath);
+      setLastHash(convId, hash);
+      setLastSavedAt(convId, Date.now());
+
+      toast(`Saved:\n${fullPath}`);
+    } catch (e) {
+      console.error(e);
+      toast(`Save failed:\n${e.message}`, 5000);
+    } finally {
+      saving = false;
+    }
+  }
+
+  async function saveSnapshotFile() {
+    if (saving) return;
+    saving = true;
+
+    try {
+      const token = getToken();
+      if (!token) {
+        toast("No GitHub token set.\nClick Set Token first.");
+        return;
+      }
+
+      const { convId, title, md, platform } = extractConversationMarkdown();
+      const lockedTitle = getOrLockTitle(convId, title);
+      const fullPath = buildSnapshotFilePath(lockedTitle, convId, platform);
+
+      await upsertFileToGitHub({
+        token,
+        path: fullPath,
+        content: md,
+        message: `Snapshot conversation: ${lockedTitle}`
+      });
+
+      toast(`Snapshot saved:\n${fullPath}`);
+    } catch (e) {
+      console.error(e);
+      toast(`Snapshot failed:\n${e.message}`, 5000);
+    } finally {
+      saving = false;
+    }
+  }
+
+  async function syncTitle() {
+    if (saving) return;
+    saving = true;
+
+    try {
+      const token = getToken();
+      if (!token) {
+        toast("No GitHub token set.\nClick Set Token first.");
+        return;
+      }
+
+      const { convId, title: currentTitle, md, platform } = extractConversationMarkdown();
+      const oldLockedTitle = getLockedTitle(convId);
+      const oldPath = getLockedPath(convId);
+
+      if (!oldLockedTitle || !oldPath) {
+        toast("No locked title yet.\nSave this conversation once first.");
+        return;
+      }
+
+      if (oldLockedTitle === currentTitle) {
+        toast("Title already matches the locked title.");
+        return;
+      }
+
+      const newPath = buildMainFilePath(currentTitle, convId, platform);
+
+      await upsertFileToGitHub({
+        token,
+        path: newPath,
+        content: md,
+        message: `Rename conversation to: ${currentTitle}`
+      });
+
+      if (oldPath !== newPath) {
+        await deleteFileFromGitHub({
+          token,
+          path: oldPath,
+          message: `Remove old conversation file after title sync: ${oldLockedTitle}`
+        });
+      }
+
+      setLockedTitle(convId, currentTitle);
+      setLockedPath(convId, newPath);
+      setLastHash(convId, simpleHash(md));
+      setLastSavedAt(convId, Date.now());
+
+      toast(`Title synced:\n${oldLockedTitle}\n→ ${currentTitle}`);
+    } catch (e) {
+      console.error(e);
+      toast(`Sync Title failed:\n${e.message}`, 5000);
+    } finally {
+      saving = false;
+    }
+  }
+
+  // =======================
+  // UI
+  // =======================
+  function makeButton(label) {
+    const btn = document.createElement("button");
+    btn.textContent = label;
+    btn.style.cssText = `
+      width: 100%;
+      padding: 8px;
+      border-radius: 10px;
+      border: 1px solid rgba(0,0,0,.15);
+      background: #fff;
+      cursor: pointer;
+      margin-bottom: 8px;
+      color: #111;
+    `;
+    btn.onmouseenter = () => { btn.style.background = "#f4f4f4"; };
+    btn.onmouseleave = () => { btn.style.background = "#fff"; };
+    return btn;
+  }
+
+  function mountUI() {
+    if (document.getElementById("jerlan-gh-logger")) return;
+    if (!document.body) return;
+
+    const isCollapsed = GM_getValue(K_COLLAPSED, false);
+    const platformLabel = detectPlatform() === "claudeai" ? "Claude Logger" : "ChatGPT Logger";
+
+    const wrap = document.createElement("div");
+    wrap.id = "jerlan-gh-logger";
+    wrap.style.cssText = `
+      position: fixed;
+      left: 16px;
+      bottom: 16px;
+      z-index: 999999;
+      background: rgba(255,255,255,.95);
+      border: 1px solid rgba(0,0,0,.12);
+      border-radius: 12px;
+      padding: 10px;
+      font: 12px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      box-shadow: 0 10px 24px rgba(0,0,0,.12);
+      color: #111;
+      width: 260px;
+      backdrop-filter: blur(8px);
+      transition: all 0.2s ease;
+    `;
+
+    const header = document.createElement("div");
+    header.style.cssText = "display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; gap:8px;";
+
+    const title = document.createElement("div");
+    title.textContent = platformLabel;
+    title.style.cssText = "font-weight:700;";
+
+    const toggleBtn = document.createElement("button");
+    toggleBtn.textContent = isCollapsed ? "+" : "–";
+    toggleBtn.style.cssText = `
+      width: 26px;
+      height: 26px;
+      border-radius: 8px;
+      border: 1px solid rgba(0,0,0,.15);
+      background: #fff;
+      cursor: pointer;
+      color: #111;
+      flex: 0 0 auto;
+    `;
+
+    header.appendChild(title);
+    header.appendChild(toggleBtn);
+    wrap.appendChild(header);
+
+    const content = document.createElement("div");
+    content.id = "jerlan-logger-content";
+    wrap.appendChild(content);
+
+    const btnSave = makeButton("Save");
+    btnSave.onclick = () => saveMainFile({ auto: false });
+    content.appendChild(btnSave);
+
+    const btnSnap = makeButton("Snapshot");
+    btnSnap.onclick = () => saveSnapshotFile();
+    content.appendChild(btnSnap);
+
+    const btnSync = makeButton("Sync Title");
+    btnSync.onclick = () => syncTitle();
+    content.appendChild(btnSync);
+
+    const autoRow = document.createElement("label");
+    autoRow.style.cssText = "display:flex; gap:8px; align-items:center; margin-bottom:8px; user-select:none;";
+
+    const autoCb = document.createElement("input");
+    autoCb.type = "checkbox";
+    autoCb.checked = getAutosave();
+    autoCb.onchange = () => {
+      setAutosave(autoCb.checked);
+      toast(`Auto-save ${autoCb.checked ? "enabled" : "disabled"}`);
+    };
+
+    const autoTxt = document.createElement("span");
+    autoTxt.textContent = "Auto-save";
+
+    autoRow.appendChild(autoCb);
+    autoRow.appendChild(autoTxt);
+    content.appendChild(autoRow);
+
+    const btnToken = makeButton("Set Token");
+    btnToken.onclick = () => {
+      const current = getToken();
+      const v = prompt("Paste GitHub Token:", current || "");
+      if (v && v.trim()) {
+        setToken(v.trim());
+        toast("Token saved.");
+      }
+    };
+    content.appendChild(btnToken);
+
+    const btnTest = makeButton("Test GitHub");
+    btnTest.onclick = () => testGitHubConnection();
+    content.appendChild(btnTest);
+
+    const btnClear = makeButton("Clear Token");
+    btnClear.onclick = () => {
+      const ok = confirm("Clear the saved GitHub token from Tampermonkey storage?");
+      if (ok) {
+        clearToken();
+        toast("Token cleared.");
+      }
+    };
+    content.appendChild(btnClear);
+
+    const info = document.createElement("div");
+    info.style.cssText = "font-size:11px; opacity:.75; margin-top:2px;";
+    info.textContent = "Hybrid lock title • Manual sync • ChatGPT + Claude";
+    content.appendChild(info);
+
+    function applyCollapseState(collapsed) {
+      if (collapsed) {
+        content.style.display = "none";
+        wrap.style.width = "150px";
+        toggleBtn.textContent = "+";
+      } else {
+        content.style.display = "block";
+        wrap.style.width = "260px";
+        toggleBtn.textContent = "–";
+      }
+    }
+
+    toggleBtn.onclick = () => {
+      const collapsed = !GM_getValue(K_COLLAPSED, false);
+      GM_setValue(K_COLLAPSED, collapsed);
+      applyCollapseState(collapsed);
+    };
+
+    applyCollapseState(isCollapsed);
+    document.body.appendChild(wrap);
+  }
+
+  // =======================
+  // AUTOSAVE LOOP
+  // =======================
+  async function autosaveLoop() {
+    while (true) {
+      await sleep(AUTOSAVE_INTERVAL_MS);
+
+      if (!getAutosave()) continue;
+      if (!document.querySelector("main")) continue;
+
+      const convId = getConversationIdFromUrl();
+      const lastAt = getLastSavedAt(convId);
+
+      if (Date.now() - lastAt < AUTOSAVE_INTERVAL_MS * 0.9) continue;
+
+      await saveMainFile({ auto: true });
+    }
+  }
+
+  // =======================
+  // INIT
+  // =======================
+  function boot() {
+    mountUI();
+  }
+
+  const obs = new MutationObserver(() => {
+    if (document.querySelector("main")) {
+      mountUI();
+    }
+  });
+
+  obs.observe(document.documentElement, { childList: true, subtree: true });
+
+  if (document.readyState === "complete" || document.readyState === "interactive") {
+    boot();
+  } else {
+    window.addEventListener("DOMContentLoaded", boot, { once: true });
+  }
+
+  autosaveLoop();
+})();
+
+A few important notes for this version:
+
+Save once first before using Sync Title.
+That first save creates the locked title and remembers the original GitHub file path.
+
+Yes, Sync Title keeps the conversation content because it writes the current full conversation into the new file before deleting the old one.
+
+Claude support may need selector tweaks later if Claude changes its UI. ChatGPT selectors are more predictable; Claude tends to change frontend structure more often.
+
+Your suffix request is now built in:
+
+__chatgpt.md
+
+__claudeai.md
+
+Since you now log both platforms, you may want to rename your repo later from ChatGPT-Project-Conversations to something broader, but the script works fine as-is.
+
+Your setup flow in Chrome is now:
+
+install Tampermonkey
+
+enable Chrome Developer mode in chrome://extensions
+
+paste this script
+
+save
+
+open ChatGPT or Claude
+
+click Set Token
+
+click Test GitHub
+
+click Save
+
+Then later, if you rename a chat title and want GitHub to match, click Sync Title.
+
+The one upgrade I’d recommend next is adding a platform subfolder too, like:
+
+logs/conversations/chatgpt/...
+logs/conversations/claudeai/...
+
+That would make the repo even cleaner.
 
