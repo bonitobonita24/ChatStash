@@ -3,7 +3,7 @@
 - Platform: chatgpt
 - Conversation ID: 69be637f-b234-8322-913f-386cf1604e74
 - Title: Tampermonkey Setup Chrome
-- Captured: 2026-03-21T13:21:53.400Z
+- Captured: 2026-03-21T13:24:15.229Z
 - URL: https://chatgpt.com/c/69be637f-b234-8322-913f-386cf1604e74
 
 ---
@@ -3352,4 +3352,189 @@ If you want next upgrade later, I can help you:
 ☁️ sync your settings across browsers
 
 Just say 👍
+
+## User
+
+can you make the floating tampermonkey dialog box be movable?
+
+## Assistant
+
+Yes — add drag support so you can move the floating panel anywhere, and it will remember the position.
+
+Add these pieces to your script.
+
+First, in the STORAGE KEYS section, add:
+
+JavaScript
+const K_PANEL_POS = "jerlan_logger_panel_pos";
+
+Then add these helper functions somewhere near your other helpers:
+
+JavaScript
+function getPanelPos() {
+  const v = GM_getValue(K_PANEL_POS, "");
+  try {
+    return v ? JSON.parse(v) : null;
+  } catch {
+    return null;
+  }
+}
+
+function setPanelPos(pos) {
+  GM_setValue(K_PANEL_POS, JSON.stringify(pos || {}));
+}
+
+function clamp(n, min, max) {
+  return Math.max(min, Math.min(max, n));
+}
+
+function enableDrag(wrap, handle) {
+  let dragging = false;
+  let startX = 0;
+  let startY = 0;
+  let startLeft = 0;
+  let startTop = 0;
+
+  const onMove = (e) => {
+    if (!dragging) return;
+
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+
+    const maxLeft = Math.max(0, window.innerWidth - wrap.offsetWidth);
+    const maxTop = Math.max(0, window.innerHeight - wrap.offsetHeight);
+
+    const nextLeft = clamp(startLeft + dx, 0, maxLeft);
+    const nextTop = clamp(startTop + dy, 0, maxTop);
+
+    wrap.style.left = `${nextLeft}px`;
+    wrap.style.top = `${nextTop}px`;
+    wrap.style.right = "auto";
+    wrap.style.bottom = "auto";
+  };
+
+  const onUp = () => {
+    if (!dragging) return;
+    dragging = false;
+
+    document.removeEventListener("mousemove", onMove);
+    document.removeEventListener("mouseup", onUp);
+
+    setPanelPos({
+      left: parseInt(wrap.style.left, 10) || 0,
+      top: parseInt(wrap.style.top, 10) || 0
+    });
+  };
+
+  handle.addEventListener("mousedown", (e) => {
+    if (e.target.closest("button, input, label")) return;
+
+    dragging = true;
+    startX = e.clientX;
+    startY = e.clientY;
+
+    const rect = wrap.getBoundingClientRect();
+    startLeft = rect.left;
+    startTop = rect.top;
+
+    wrap.style.left = `${rect.left}px`;
+    wrap.style.top = `${rect.top}px`;
+    wrap.style.right = "auto";
+    wrap.style.bottom = "auto";
+
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+
+    e.preventDefault();
+  });
+
+  window.addEventListener("resize", () => {
+    const rect = wrap.getBoundingClientRect();
+    const maxLeft = Math.max(0, window.innerWidth - wrap.offsetWidth);
+    const maxTop = Math.max(0, window.innerHeight - wrap.offsetHeight);
+
+    const nextLeft = clamp(rect.left, 0, maxLeft);
+    const nextTop = clamp(rect.top, 0, maxTop);
+
+    wrap.style.left = `${nextLeft}px`;
+    wrap.style.top = `${nextTop}px`;
+    wrap.style.right = "auto";
+    wrap.style.bottom = "auto";
+
+    setPanelPos({ left: nextLeft, top: nextTop });
+  });
+}
+
+Then inside your mountUI() function, change the panel style so it can use saved position.
+
+Replace this part:
+
+JavaScript
+wrap.style.cssText = `
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 999999;
+  background: rgba(255,255,255,.95);
+  border: 1px solid rgba(0,0,0,.12);
+  border-radius: 12px;
+  padding: 10px;
+  font: 12px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  box-shadow: 0 10px 24px rgba(0,0,0,.12);
+  color: #111;
+  width: 260px;
+  backdrop-filter: blur(8px);
+  transition: all 0.2s ease;
+`;
+
+with this:
+
+JavaScript
+const savedPos = getPanelPos();
+
+wrap.style.cssText = `
+  position: fixed;
+  ${savedPos ? `left: ${savedPos.left}px; top: ${savedPos.top}px; right: auto; bottom: auto;` : `left: 16px; bottom: 16px;`}
+  z-index: 999999;
+  background: rgba(255,255,255,.95);
+  border: 1px solid rgba(0,0,0,.12);
+  border-radius: 12px;
+  padding: 10px;
+  font: 12px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  box-shadow: 0 10px 24px rgba(0,0,0,.12);
+  color: #111;
+  width: 260px;
+  backdrop-filter: blur(8px);
+  transition: all 0.2s ease;
+`;
+
+Then make the header look draggable. In mountUI(), after creating header, add:
+
+JavaScript
+header.style.cursor = "move";
+header.title = "Drag to move";
+
+And after this line:
+
+JavaScript
+applyCollapseState(isCollapsed);
+
+add:
+
+JavaScript
+enableDrag(wrap, header);
+
+That’s it.
+
+What this does:
+
+lets you drag the box by its header
+
+remembers the last position
+
+keeps buttons clickable
+
+keeps the panel inside the screen on resize
+
+If you want, I can also give you the full updated script with this already merged in so you can paste it all at once.
 
