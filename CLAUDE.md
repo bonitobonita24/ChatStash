@@ -8,7 +8,7 @@ This file is the persistent development log and reference for Claude Code sessio
 
 A self-hosted web app that aggregates, indexes, and searches markdown conversation exports from multiple AI platforms (ChatGPT, Claude AI, Cline, Copilot, Codex, etc.).
 
-**Production domain:** aichat.powerbyte.app
+**Production domain:** your-domain.com
 
 ---
 

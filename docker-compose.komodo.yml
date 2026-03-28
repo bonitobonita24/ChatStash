@@ -6,7 +6,7 @@ services:
 
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.aichat.rule=Host(`aichat.powerbyte.app`)"
+      - "traefik.http.routers.aichat.rule=Host(`${COOKIE_DOMAIN:?COOKIE_DOMAIN is required}`)"
       - "traefik.http.routers.aichat.entrypoints=websecure"
       - "traefik.http.routers.aichat.tls=true"
       - "traefik.http.routers.aichat.tls.certresolver=letsencrypt"
@@ -17,7 +17,7 @@ services:
       - PORT=4173
       - SESSION_SECRET=${SESSION_SECRET:?SESSION_SECRET is required}
       - COOKIE_SECURE=true
-      - COOKIE_DOMAIN=aichat.powerbyte.app
+      - COOKIE_DOMAIN=${COOKIE_DOMAIN:?COOKIE_DOMAIN is required}
       - APP_ADMIN_USERNAME=${APP_ADMIN_USERNAME:?APP_ADMIN_USERNAME is required}
       - APP_ADMIN_EMAIL=${APP_ADMIN_EMAIL:-admin@localhost}
       - APP_ADMIN_PASSWORD=${APP_ADMIN_PASSWORD:?APP_ADMIN_PASSWORD is required}
@@ -26,7 +26,7 @@ services:
       - SMTP_USER=${SMTP_USER:-}
       - SMTP_PASS=${SMTP_PASS:-}
       - SMTP_FROM=${SMTP_FROM:-}
-      - APP_URL=${APP_URL:-https://aichat.powerbyte.app}
+      - APP_URL=${APP_URL:?APP_URL is required}
 
     volumes:
       - ai-chats-prod-auth:/app/.auth

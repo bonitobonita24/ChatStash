@@ -188,7 +188,11 @@ async function ensureAuthStore() {
     return;
   }
 
-  const initialPassword = process.env.APP_ADMIN_PASSWORD || 'xxx123XXX321xxx';
+  const initialPassword = process.env.APP_ADMIN_PASSWORD;
+  if (!initialPassword) {
+    console.error('APP_ADMIN_PASSWORD must be set to seed the initial admin account.');
+    process.exit(1);
+  }
   const salt = crypto.randomBytes(16).toString('hex');
   const hash = await derivePasswordHash(initialPassword, salt);
   const adminUser = {

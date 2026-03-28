@@ -199,7 +199,7 @@ Use the dedicated compose file so every Komodo deployment starts the production 
 1. In Komodo, create a new Stack for this repository.
 2. Set Compose File to `docker-compose.komodo.yml`.
 3. Keep branch as `main` (or your chosen release branch).
-4. Set the production domain to `aichat.powerbyte.app` in your reverse proxy / ingress route to this stack.
+4. Set the production domain to `your-domain.com` in your reverse proxy / ingress route to this stack.
 5. In Komodo stack environment variables, set:
    - `SESSION_SECRET` to a strong random value (required)
    - `PROD_PORT` if you need a custom external port (default is `3000`)
@@ -209,7 +209,7 @@ Result:
 - On each deployment trigger, Komodo builds `Dockerfile` using `target: production`.
 - Container runs with `NODE_ENV=production` automatically.
 - No development profile is used in Komodo deployments.
-- Session cookie security is enforced for `aichat.powerbyte.app`.
+- Session cookie security is enforced for `your-domain.com`.
 
 ### Image Management
 

@@ -6,7 +6,12 @@ const repoRoot = process.cwd();
 const authDir = path.join(repoRoot, '.auth');
 const authFile = path.join(authDir, 'credentials.json');
 
-const newPassword = process.argv[2] || process.env.NEW_ADMIN_PASSWORD || 'xxx123XXX321xxx';
+const newPassword = process.argv[2] || process.env.NEW_ADMIN_PASSWORD;
+
+if (!newPassword) {
+  console.error('Usage: node scripts/reset-admin-password.mjs <new-password>');
+  process.exit(1);
+}
 
 if (newPassword.length < 12) {
   console.error('Password must be at least 12 characters.');
