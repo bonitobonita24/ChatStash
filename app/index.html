@@ -111,14 +111,15 @@
           <h3 class="settings-section-title">Account Tier</h3>
           <div id="tierDisplay" class="tier-info">
             <span id="tierBadge" class="tier-badge free">Free</span>
-            <span id="tierDesc" class="auth-hint" style="margin:0;">Text conversations + text file attachments</span>
+            <span id="tierDesc" class="auth-hint" style="margin:0;">Text conversations only</span>
           </div>
-          <div class="storage-bar-wrap">
+          <div id="storageBarSection" class="storage-bar-wrap" hidden>
             <div class="storage-bar"><div id="storageBarFill" class="storage-bar-fill" style="width:0%"></div></div>
             <span id="storageLabel" class="auth-hint" style="margin:0;font-size:0.75rem;">0 B used</span>
           </div>
           <div class="tier-actions">
             <button id="upgradeBtn" class="hero-btn primary" style="font-size:0.82rem;padding:0.5rem 1rem;" hidden>Upgrade to Premium — $2/mo</button>
+            <p id="upgradeHint" class="auth-hint" style="margin:0.3rem 0 0;font-size:0.75rem;line-height:1.4;" hidden>Save images, screenshots, audio, and file attachments from your AI conversations. Includes 5 GB storage.</p>
             <button id="cancelSubBtn" class="export-btn" style="font-size:0.78rem;" hidden>Cancel Subscription</button>
             <span id="subStatusLabel" class="auth-hint" style="margin:0;font-size:0.75rem;" hidden></span>
           </div>

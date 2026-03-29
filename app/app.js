@@ -478,19 +478,30 @@ function bindAuthEvents() {
         const storageBarFill = document.getElementById('storageBarFill');
         const storageLabel = document.getElementById('storageLabel');
 
-        tierBadge.textContent = acct.tier === 'premium' ? 'Premium' : 'Free';
+        const isPremium = acct.tier === 'premium';
+        tierBadge.textContent = isPremium ? 'Premium' : 'Free';
         tierBadge.className = `tier-badge ${acct.tier || 'free'}`;
-        tierDesc.textContent = acct.tier === 'premium'
+        tierDesc.textContent = isPremium
           ? 'All file types: images, audio, media, text'
-          : 'Text conversations + text file attachments only';
+          : 'Text conversations only';
 
-        const used = Number(acct.storage_used_bytes || 0);
-        const limit = Number(acct.storage_limit_bytes || 0);
-        const pct = limit > 0 ? Math.min(100, (used / limit) * 100) : 0;
-        storageBarFill.style.width = `${pct}%`;
-        storageLabel.textContent = limit > 0
-          ? `${formatBytes(used)} / ${formatBytes(limit)} used`
-          : `${formatBytes(used)} used`;
+        const storageBarSection = document.getElementById('storageBarSection');
+        const upgradeHint = document.getElementById('upgradeHint');
+
+        if (isPremium) {
+          storageBarSection.hidden = false;
+          upgradeHint.hidden = true;
+          const used = Number(acct.storage_used_bytes || 0);
+          const limit = Number(acct.storage_limit_bytes || 0);
+          const pct = limit > 0 ? Math.min(100, (used / limit) * 100) : 0;
+          storageBarFill.style.width = `${pct}%`;
+          storageLabel.textContent = limit > 0
+            ? `${formatBytes(used)} / ${formatBytes(limit)} used`
+            : `${formatBytes(used)} used`;
+        } else {
+          storageBarSection.hidden = true;
+          upgradeHint.hidden = false;
+        }
 
         // Subscription buttons
         const upgradeBtn = document.getElementById('upgradeBtn');
