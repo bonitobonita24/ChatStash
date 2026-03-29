@@ -73,6 +73,9 @@ async function migrate() {
     await addCol('users', 'tier', "TEXT NOT NULL DEFAULT 'free'");
     await addCol('users', 'storage_used_bytes', 'BIGINT NOT NULL DEFAULT 0');
     await addCol('users', 'storage_limit_bytes', 'BIGINT NOT NULL DEFAULT 0');
+    await addCol('users', 'xendit_plan_id', 'TEXT');
+    await addCol('users', 'subscription_status', "TEXT NOT NULL DEFAULT 'none'");
+    await addCol('users', 'subscription_expires_at', 'TIMESTAMPTZ');
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS attachments (
@@ -386,9 +389,51 @@ async function subtractStorageUsed(userId, bytes) {
 
 async function getUserAccount(userId) {
   const { rows } = await pool.query(
-    'SELECT id, email, username, role, tier, storage_used_bytes, storage_limit_bytes, created_at FROM users WHERE id = $1',
+    `SELECT id, email, username, role, tier, storage_used_bytes, storage_limit_bytes,
+     xendit_plan_id, subscription_status, subscription_expires_at, created_at
+     FROM users WHERE id = $1`,
     [userId]
   );
+  const user = rows[0];
+  if (!user) return null;
+
+  // Lazy expiration: downgrade cancelled subscriptions past their expiry
+  if (user.subscription_status === 'cancelled' && user.subscription_expires_at && new Date(user.subscription_expires_at) < new Date()) {
+    await pool.query(
+      "UPDATE users SET tier = 'free', storage_limit_bytes = 0, subscription_status = 'expired' WHERE id = $1",
+      [userId]
+    );
+    user.tier = 'free';
+    user.storage_limit_bytes = 0;
+    user.subscription_status = 'expired';
+  }
+
+  return user;
+}
+
+// ─── Subscription helpers ────────────────────────────────────────────────────
+
+const PREMIUM_STORAGE_BYTES = 5 * 1024 * 1024 * 1024; // 5GB
+
+async function updateSubscription(userId, { xenditPlanId, status, expiresAt, upgradeToPremium }) {
+  const sets = ['changed_at = NOW()'];
+  const params = [];
+  let idx = 1;
+
+  if (xenditPlanId !== undefined) { sets.push(`xendit_plan_id = $${idx++}`); params.push(xenditPlanId); }
+  if (status !== undefined) { sets.push(`subscription_status = $${idx++}`); params.push(status); }
+  if (expiresAt !== undefined) { sets.push(`subscription_expires_at = $${idx++}`); params.push(expiresAt); }
+  if (upgradeToPremium) {
+    sets.push(`tier = 'premium'`);
+    sets.push(`storage_limit_bytes = ${PREMIUM_STORAGE_BYTES}`);
+  }
+
+  params.push(userId);
+  await pool.query(`UPDATE users SET ${sets.join(', ')} WHERE id = $${idx}`, params);
+}
+
+async function findUserByXenditPlanId(planId) {
+  const { rows } = await pool.query('SELECT * FROM users WHERE xendit_plan_id = $1', [planId]);
   return rows[0] || null;
 }
 
@@ -416,4 +461,7 @@ module.exports = {
   getConversationAttachmentPaths,
   addStorageUsed,
   subtractStorageUsed,
+  updateSubscription,
+  findUserByXenditPlanId,
+  PREMIUM_STORAGE_BYTES,
 };

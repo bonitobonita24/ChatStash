@@ -886,6 +886,14 @@ mark { background: var(--highlight); color: #f0f4ff; }
   transition: width 0.3s;
 }
 
+.tier-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.4rem;
+  flex-wrap: wrap;
+}
+
 .auth-links {
   display: flex;
   gap: 0.35rem;

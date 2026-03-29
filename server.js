@@ -6,6 +6,7 @@ const crypto = require('node:crypto');
 
 const db = require('./db');
 const storage = require('./storage');
+const xendit = require('./xendit');
 
 let nodemailer;
 try { nodemailer = require('nodemailer'); } catch { nodemailer = null; }
@@ -49,6 +50,48 @@ const passwordResetTokens = new Map();
 app.disable('x-powered-by');
 app.set('trust proxy', 1);
 app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
+// Xendit webhook — needs raw body for signature verification, BEFORE express.json()
+app.post('/api/webhook/xendit', express.json({ limit: '1mb' }), async (req, res) => {
+  const callbackToken = req.headers['x-callback-token'];
+  if (!xendit.verifyWebhook(callbackToken)) {
+    res.status(401).json({ ok: false, error: 'Invalid callback token' });
+    return;
+  }
+
+  const event = req.headers['x-callback-event'] || req.body.event || '';
+  const data = req.body.data || req.body;
+
+  try {
+    const planId = data.plan_id || data.id;
+    if (!planId) { res.json({ ok: true }); return; }
+
+    const user = await db.findUserByXenditPlanId(planId);
+    if (!user) { console.log(`Webhook: no user for plan ${planId}`); res.json({ ok: true }); return; }
+
+    if (event === 'recurring.plan.activated' || event === 'recurring.cycle.succeeded') {
+      const nextMonth = new Date();
+      nextMonth.setMonth(nextMonth.getMonth() + 1);
+      await db.updateSubscription(user.id, {
+        status: 'active',
+        expiresAt: nextMonth.toISOString(),
+        upgradeToPremium: true,
+      });
+      console.log(`Webhook: upgraded user ${user.email} to premium`);
+    } else if (event === 'recurring.plan.inactivated') {
+      await db.updateSubscription(user.id, { status: 'cancelled' });
+      console.log(`Webhook: cancelled subscription for ${user.email}`);
+    } else if (event === 'recurring.cycle.failed') {
+      await db.updateSubscription(user.id, { status: 'past_due' });
+      console.log(`Webhook: payment failed for ${user.email}`);
+    }
+
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('Webhook error:', e.message);
+    res.status(500).json({ ok: false });
+  }
+});
+
 app.use(express.json({ limit: '50mb' }));
 app.use(session({
   name: 'ai_chats_sid',
@@ -383,6 +426,90 @@ app.post('/api/auth/regenerate-api-key', requireAuth, async (req, res) => {
     res.json({ ok: true, apiKey });
   } catch {
     res.status(500).json({ ok: false, error: 'Failed to regenerate API key.' });
+  }
+});
+
+// ─── Subscription API ─────────────────────────────────────────────────────────
+
+app.post('/api/subscription/create', requireAuth, async (req, res) => {
+  if (!xendit.isConfigured()) {
+    res.status(503).json({ ok: false, error: 'Payment gateway not configured.' });
+    return;
+  }
+
+  try {
+    const user = await db.getUserAccount(req.session.user.userId);
+    if (user.tier === 'premium' && user.subscription_status === 'active') {
+      res.status(400).json({ ok: false, error: 'You already have an active premium subscription.' });
+      return;
+    }
+
+    const plan = await xendit.createRecurringPlan({
+      userId: user.id,
+      email: user.email,
+      returnUrl: `${APP_URL}/?subscription=success`,
+      cancelUrl: `${APP_URL}/?subscription=cancelled`,
+    });
+
+    await db.updateSubscription(user.id, {
+      xenditPlanId: plan.id,
+      status: 'pending',
+    });
+
+    // Find the approval/payment action URL
+    const payUrl = plan.actions?.find(a => a.action === 'AUTH')?.url
+      || plan.actions?.find(a => a.url_type === 'WEB')?.url
+      || plan.actions?.[0]?.url;
+
+    res.json({ ok: true, planId: plan.id, approvalUrl: payUrl });
+  } catch (e) {
+    console.error('Subscription create error:', e.message);
+    res.status(500).json({ ok: false, error: 'Failed to create subscription.' });
+  }
+});
+
+app.post('/api/subscription/activate', requireAuth, async (req, res) => {
+  try {
+    const user = await db.getUserAccount(req.session.user.userId);
+    if (!user.xendit_plan_id) {
+      res.status(400).json({ ok: false, error: 'No pending subscription found.' });
+      return;
+    }
+
+    const plan = await xendit.getPlan(user.xendit_plan_id);
+    if (plan.status === 'ACTIVE') {
+      const nextMonth = new Date();
+      nextMonth.setMonth(nextMonth.getMonth() + 1);
+      await db.updateSubscription(user.id, {
+        status: 'active',
+        expiresAt: nextMonth.toISOString(),
+        upgradeToPremium: true,
+      });
+      res.json({ ok: true, tier: 'premium' });
+    } else {
+      res.json({ ok: true, status: plan.status });
+    }
+  } catch (e) {
+    console.error('Subscription activate error:', e.message);
+    res.status(500).json({ ok: false, error: 'Failed to activate subscription.' });
+  }
+});
+
+app.post('/api/subscription/cancel', requireAuth, async (req, res) => {
+  try {
+    const user = await db.getUserAccount(req.session.user.userId);
+    if (!user.xendit_plan_id || user.subscription_status !== 'active') {
+      res.status(400).json({ ok: false, error: 'No active subscription to cancel.' });
+      return;
+    }
+
+    await xendit.deactivatePlan(user.xendit_plan_id);
+    await db.updateSubscription(user.id, { status: 'cancelled' });
+
+    res.json({ ok: true, expiresAt: user.subscription_expires_at });
+  } catch (e) {
+    console.error('Subscription cancel error:', e.message);
+    res.status(500).json({ ok: false, error: 'Failed to cancel subscription.' });
   }
 });
 

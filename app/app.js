@@ -186,6 +186,15 @@ async function bootstrap() {
   }
 
   await unlockAndInitApp();
+
+  // Handle return from Xendit payment
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('subscription') === 'success') {
+    try { await apiPost('/api/subscription/activate', {}); } catch {}
+    window.history.replaceState({}, '', window.location.pathname);
+  } else if (urlParams.has('subscription')) {
+    window.history.replaceState({}, '', window.location.pathname);
+  }
 }
 
 async function unlockAndInitApp() {
@@ -482,6 +491,38 @@ function bindAuthEvents() {
         storageLabel.textContent = limit > 0
           ? `${formatBytes(used)} / ${formatBytes(limit)} used`
           : `${formatBytes(used)} used`;
+
+        // Subscription buttons
+        const upgradeBtn = document.getElementById('upgradeBtn');
+        const cancelSubBtn = document.getElementById('cancelSubBtn');
+        const subStatusLabel = document.getElementById('subStatusLabel');
+        const subStatus = document.getElementById('subStatus');
+        setAuthStatus(subStatus, '', '');
+
+        if (acct.tier === 'free' || acct.subscription_status === 'expired' || acct.subscription_status === 'none') {
+          upgradeBtn.hidden = false;
+          cancelSubBtn.hidden = true;
+          subStatusLabel.hidden = true;
+        } else if (acct.subscription_status === 'active') {
+          upgradeBtn.hidden = true;
+          cancelSubBtn.hidden = false;
+          subStatusLabel.hidden = false;
+          subStatusLabel.textContent = acct.subscription_expires_at
+            ? `Renews ${new Date(acct.subscription_expires_at).toLocaleDateString()}`
+            : 'Active';
+        } else if (acct.subscription_status === 'cancelled') {
+          upgradeBtn.hidden = false;
+          cancelSubBtn.hidden = true;
+          subStatusLabel.hidden = false;
+          subStatusLabel.textContent = acct.subscription_expires_at
+            ? `Premium until ${new Date(acct.subscription_expires_at).toLocaleDateString()}`
+            : 'Cancelled';
+        } else {
+          upgradeBtn.hidden = true;
+          cancelSubBtn.hidden = true;
+          subStatusLabel.hidden = false;
+          subStatusLabel.textContent = `Status: ${acct.subscription_status || 'unknown'}`;
+        }
       }
     } catch {}
 
@@ -524,6 +565,44 @@ function bindAuthEvents() {
 
   els.closeSettingsBtn.addEventListener('click', () => {
     els.settingsOverlay.hidden = true;
+  });
+
+  // Upgrade to Premium
+  document.getElementById('upgradeBtn')?.addEventListener('click', async () => {
+    const subStatus = document.getElementById('subStatus');
+    setAuthStatus(subStatus, 'Creating subscription...', 'success');
+    try {
+      const resp = await apiPost('/api/subscription/create', {});
+      if (!resp.ok) {
+        setAuthStatus(subStatus, resp.error || 'Upgrade failed.', 'error');
+        return;
+      }
+      if (resp.approvalUrl) {
+        window.location.href = resp.approvalUrl;
+      } else {
+        setAuthStatus(subStatus, 'Subscription created. Waiting for payment confirmation...', 'success');
+      }
+    } catch {
+      setAuthStatus(subStatus, 'Upgrade failed. Please try again.', 'error');
+    }
+  });
+
+  // Cancel subscription
+  document.getElementById('cancelSubBtn')?.addEventListener('click', async () => {
+    if (!confirm('Cancel your premium subscription? You will keep premium access until the current billing period ends.')) return;
+    const subStatus = document.getElementById('subStatus');
+    try {
+      const resp = await apiPost('/api/subscription/cancel', {});
+      if (!resp.ok) {
+        setAuthStatus(subStatus, resp.error || 'Cancel failed.', 'error');
+        return;
+      }
+      setAuthStatus(subStatus, 'Subscription cancelled. Premium active until end of billing period.', 'success');
+      document.getElementById('cancelSubBtn').hidden = true;
+      document.getElementById('upgradeBtn').hidden = false;
+    } catch {
+      setAuthStatus(subStatus, 'Cancel failed. Please try again.', 'error');
+    }
   });
 
   els.changePasswordForm.addEventListener('submit', async (event) => {
