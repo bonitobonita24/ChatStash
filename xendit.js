@@ -29,16 +29,27 @@ async function xenditRequest(method, path, body) {
   return data;
 }
 
-// Create a Xendit customer (required for recurring plans)
-async function createCustomer({ userId, email, username }) {
-  return xenditRequest('POST', '/customers', {
-    reference_id: `user_${userId}`,
-    email,
-    type: 'INDIVIDUAL',
-    individual_detail: {
-      given_names: username || email.split('@')[0],
-    },
-  });
+// Get or create a Xendit customer
+async function getOrCreateCustomer({ userId, email, username }) {
+  const refId = `user_${userId}`;
+
+  // Try creating first (faster path for new users)
+  try {
+    return await xenditRequest('POST', '/customers', {
+      reference_id: refId,
+      email,
+      type: 'INDIVIDUAL',
+      individual_detail: { given_names: username || email.split('@')[0] },
+    });
+  } catch (e) {
+    // If duplicate, look up existing
+    if (String(e.message).includes('reference_id') || String(e.message).includes('DUPLICATE')) {
+      const data = await xenditRequest('GET', `/customers?reference_id=${encodeURIComponent(refId)}`);
+      const existing = data?.data?.[0] || data?.[0];
+      if (existing?.id) return existing;
+    }
+    throw e;
+  }
 }
 
 // Create a recurring plan for a user
@@ -70,12 +81,6 @@ async function createRecurringPlan({ customerId, userId, email, returnUrl, cance
   });
 }
 
-// Look up existing customer by reference_id
-async function getCustomerByRef(referenceId) {
-  const data = await xenditRequest('GET', `/customers?reference_id=${encodeURIComponent(referenceId)}`);
-  return data?.data?.[0] || data?.[0] || null;
-}
-
 // Get plan details
 async function getPlan(planId) {
   return xenditRequest('GET', `/recurring/plans/${planId}`);
@@ -97,8 +102,7 @@ function isConfigured() {
 }
 
 module.exports = {
-  createCustomer,
-  getCustomerByRef,
+  getOrCreateCustomer,
   createRecurringPlan,
   getPlan,
   deactivatePlan,

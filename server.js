@@ -459,34 +459,14 @@ app.post('/api/subscription/create', requireAuth, async (req, res) => {
       try { await xendit.deactivatePlan(user.xendit_plan_id); } catch {}
     }
 
-    // Create or reuse Xendit customer
-    let customer;
-    try {
-      customer = await xendit.createCustomer({ userId: user.id, email: user.email, username: user.username });
-    } catch (e) {
-      // Customer already exists — extract ID from error or use reference
-      if (String(e.message).includes('DUPLICATE') || String(e.message).includes('already')) {
-        customer = null;
-      } else {
-        throw e;
-      }
-    }
-
-    // If customer creation failed (duplicate), look up by reference_id
-    let customerId = customer?.id;
-    if (!customerId) {
-      try {
-        const lookup = await xendit.getCustomerByRef(`user_${user.id}`);
-        customerId = lookup?.id;
-      } catch {}
-    }
-    if (!customerId) {
+    const customer = await xendit.getOrCreateCustomer({ userId: user.id, email: user.email, username: user.username });
+    if (!customer?.id) {
       res.status(500).json({ ok: false, error: 'Failed to create payment customer.' });
       return;
     }
 
     const plan = await xendit.createRecurringPlan({
-      customerId,
+      customerId: customer.id,
       userId: user.id,
       email: user.email,
       returnUrl: `${APP_URL}/?subscription=success`,
