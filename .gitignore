@@ -6,6 +6,10 @@
 tampermonkey-script.md
 Makefile.local
 
+# Docker compose (real deployments — use .example versions as templates)
+docker-compose.dev.yml
+docker-compose.komodo.yml
+
 # Node dependencies
 node_modules/
 

@@ -1,3 +1,20 @@
+# Production Docker Compose (Komodo / Traefik)
+# Copy to docker-compose.komodo.yml and set env vars in your deployment platform
+#
+# Required environment variables (set in Komodo Environment section):
+#   SESSION_SECRET        — random 64+ char string
+#   PG_PASSWORD           — strong PostgreSQL password
+#   COOKIE_DOMAIN         — your production domain (e.g. aichat.example.com)
+#   APP_ADMIN_USERNAME    — initial admin username
+#   APP_ADMIN_EMAIL       — initial admin email
+#   APP_ADMIN_PASSWORD    — initial admin password (12+ chars)
+#   APP_URL               — full URL (e.g. https://aichat.example.com)
+#   DOCKER_IMAGE          — Docker Hub image (e.g. youruser/ai-chats:latest)
+#
+# Optional:
+#   PG_USER               — PostgreSQL user (default: aichats)
+#   SMTP_HOST/PORT/USER/PASS/FROM — for email verification & password reset
+
 services:
   db:
     image: postgres:16-alpine
