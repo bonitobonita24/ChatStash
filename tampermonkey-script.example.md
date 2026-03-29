@@ -200,27 +200,75 @@
     return msgs;
   }
 
-  async function scrollClaudeToLoadAll() {
+  // Claude uses virtualized rendering — messages are removed from DOM when scrolled past.
+  // We must collect messages DURING scrolling, not after.
+  async function extractClaude() {
     const scroller =
       document.querySelector('[class*="overflow-y-auto"]') ||
       document.querySelector("main") ||
       document.documentElement;
 
-    // Scroll to top first so all messages load from the beginning
+    // Collect messages while scrolling — deduplicate by text hash
+    const collected = new Map(); // hash → { role, text }
+
+    function harvestVisible() {
+      // Find the conversation container (has many children, contains user-message elements)
+      let container = null;
+      const firstUser = document.querySelector('[data-testid="user-message"]');
+      if (firstUser) {
+        let el = firstUser;
+        for (let i = 0; i < 10; i++) {
+          el = el.parentElement;
+          if (!el) break;
+          if (el.children.length > 5 && el.querySelectorAll('[data-testid="user-message"]').length > 0) {
+            container = el;
+          }
+        }
+      }
+
+      if (!container) return;
+
+      for (const child of container.children) {
+        const userMsg = child.querySelector('[data-testid="user-message"]');
+        if (userMsg) {
+          const text = (userMsg.innerText || "").trim();
+          if (text) {
+            const key = text.slice(0, 100);
+            if (!collected.has(key)) collected.set(key, { role: "User", text, _el: child });
+          }
+        } else {
+          // Assistant turn — clone and strip UI chrome
+          const clone = child.cloneNode(true);
+          clone.querySelectorAll(
+            'button, [role="button"], svg, form, [class*="action"], [class*="toolbar"], ' +
+            '[class*="copy"], [class*="vote"], [class*="footer"], [class*="controls"], ' +
+            '[class*="opacity-0"]'
+          ).forEach(n => n.remove());
+          const text = (clone.innerText || "").trim();
+          if (text && text.length > 10) {
+            const key = text.slice(0, 100);
+            if (!collected.has(key)) collected.set(key, { role: "Assistant", text, _el: child });
+          }
+        }
+      }
+    }
+
+    // Scroll to top
     scroller.scrollTop = 0;
     await sleep(600);
+    harvestVisible();
 
-    // Scroll down in steps, re-check scrollHeight each iteration
-    // because Claude adds DOM elements as you scroll
-    const step = Math.max(window.innerHeight * 0.7, 350);
+    // Scroll down in steps, harvesting at each position
+    const step = Math.max(window.innerHeight * 0.6, 300);
     let lastHeight = 0;
     let stableCount = 0;
 
     while (stableCount < 3) {
-      const currentHeight = scroller.scrollHeight;
       scroller.scrollTop += step;
-      await sleep(400);
+      await sleep(350);
+      harvestVisible();
 
+      const currentHeight = scroller.scrollHeight;
       if (currentHeight === lastHeight) {
         stableCount++;
       } else {
@@ -228,87 +276,18 @@
       }
       lastHeight = currentHeight;
 
-      // Safety: don't scroll forever
       if (scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 10) {
         stableCount++;
       }
     }
 
-    // Scroll to bottom to ensure last messages are rendered
+    // Final harvest at bottom
     scroller.scrollTop = scroller.scrollHeight;
-    await sleep(500);
-  }
+    await sleep(400);
+    harvestVisible();
 
-  async function extractClaude() {
-    await scrollClaudeToLoadAll();
-
-    const msgs = [];
-
-    // Strategy 1: user-message testid + sibling turns
-    const userNodes = [...document.querySelectorAll('[data-testid="user-message"]')];
-    if (userNodes.length > 0) {
-      const wrapper = userNodes[0].closest('[class*="group"], article, [data-testid]')?.parentElement;
-      if (wrapper) {
-        for (const turn of [...wrapper.children]) {
-          const userMsg = turn.querySelector('[data-testid="user-message"]');
-          if (userMsg) {
-            const text = (userMsg.innerText || "").trim();
-            if (text) msgs.push({ role: "User", text, _el: turn });
-          } else {
-            const proseEl = turn.querySelector(".font-claude-message") || turn.querySelector('[class*="prose"]') || turn;
-            const clone = proseEl.cloneNode(true);
-            clone.querySelectorAll('button, [role="button"], svg, form, [class*="action"], [class*="toolbar"], [class*="copy"], [class*="vote"], [class*="footer"], [class*="controls"]').forEach(n => n.remove());
-            const text = (clone.innerText || "").trim();
-            if (text && text.length > 10) msgs.push({ role: "Assistant", text, _el: turn });
-          }
-        }
-      }
-
-      // Fallback: pair user nodes with siblings if wrapper walk failed
-      if (!msgs.length) {
-        userNodes.forEach((node) => {
-          const text = (node.innerText || "").trim();
-          if (text) msgs.push({ role: "User", text, _el: node });
-          let sibling = node.closest("div, article")?.nextElementSibling;
-          while (sibling) {
-            const aiText = (sibling.innerText || "").trim();
-            if (aiText && aiText !== text && aiText.length > 10) {
-              msgs.push({ role: "Assistant", text: aiText, _el: sibling });
-              break;
-            }
-            sibling = sibling.nextElementSibling;
-          }
-        });
-      }
-    }
-
-    // Strategy 2: alternating articles
-    if (!msgs.length) {
-      document.querySelectorAll("main article").forEach((el, i) => {
-        const text = (el.innerText || "").trim();
-        if (text) msgs.push({ role: i % 2 === 0 ? "User" : "Assistant", text, _el: el });
-      });
-    }
-
-    // Strategy 3: broad attribute search
-    if (!msgs.length) {
-      const seen = new Set();
-      const nodes = [
-        ...document.querySelectorAll('[data-testid*="human"], [data-testid*="user"]'),
-        ...document.querySelectorAll('[data-testid*="assistant"], [data-testid*="claude"]'),
-        ...document.querySelectorAll('[class*="human-turn"], [class*="assistant-turn"]'),
-      ].sort((a, b) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1));
-
-      for (const node of nodes) {
-        const text = (node.innerText || "").trim();
-        if (!text || seen.has(text)) continue;
-        seen.add(text);
-        const lower = `${node.getAttribute("data-testid") || ""} ${node.className || ""}`.toLowerCase();
-        const role = (lower.includes("user") || lower.includes("human")) ? "User" : "Assistant";
-        msgs.push({ role, text, _el: node });
-      }
-    }
-
+    // Convert collected map to ordered array
+    const msgs = [...collected.values()];
     return msgs;
   }
 
