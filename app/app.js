@@ -21,6 +21,7 @@ const state = {
   bookmarkQuery: '',
   pendingEmail: null,
   pendingResetToken: null,
+  _loadRequestId: 0,
   searchResults: {
     matches: [],
     currentIndex: 0,
@@ -198,6 +199,12 @@ async function unlockAndInitApp() {
   state.appInitialized = true;
 }
 
+const EMPTY_DATASET = {
+  conversations: [],
+  codeSnippets: [],
+  stats: { conversations: 0, codeSnippets: 0, messages: 0 },
+};
+
 async function loadConversations() {
   const params = new URLSearchParams();
   if (state.globalQuery) params.set('q', state.globalQuery);
@@ -205,23 +212,24 @@ async function loadConversations() {
   params.set('limit', '500');
 
   const response = await authFetch(`/api/conversations?${params}`, { method: 'GET' });
-  if (!response || !response.ok) return;
+  if (!response || !response.ok) {
+    if (!state.dataset) state.dataset = { ...EMPTY_DATASET };
+    state.filteredConversations = [];
+    return;
+  }
   const data = await response.json();
 
-  // Fetch stats separately
   const statsResp = await authFetch('/api/stats', { method: 'GET' });
-  const stats = statsResp && statsResp.ok ? await statsResp.json() : { conversations: 0, codeSnippets: 0, messages: 0 };
+  const stats = statsResp && statsResp.ok ? await statsResp.json() : EMPTY_DATASET.stats;
 
   state.dataset = {
     conversations: data.conversations.map((c) => ({
       ...c,
       messages: [],
       codeSnippets: [],
-      snapshots: [],
     })),
     codeSnippets: [],
     stats,
-    generatedAt: new Date().toISOString(),
   };
   state.filteredConversations = [...state.dataset.conversations];
   state.filteredCodeSnippets = [];
@@ -236,7 +244,6 @@ async function loadConversationDetail(id) {
   const response = await authFetch(`/api/conversations/${encodeURIComponent(id)}`, { method: 'GET' });
   if (!response || !response.ok) return null;
   const conv = await response.json();
-  conv.snapshots = [];
   return conv;
 }
 
@@ -823,15 +830,7 @@ function scrollToCurrentResult() {
 }
 
 function getBlockDomId(block) {
-  if (block.source === 'main') {
-    return `message-${block.index}`;
-  }
-
-  if (block.source === 'snapshot') {
-    return `snapshot-${block.snapshotIndex}-message-${block.index}`;
-  }
-
-  return '';
+  return block.source === 'main' ? `message-${block.index}` : '';
 }
 
 function renderStats() {
@@ -866,20 +865,6 @@ function applyConversationFilter() {
 }
 
 function applyCodeFilter() {
-  const combinedQuery = `${state.globalQuery} ${state.codeQuery}`.trim();
-  state.filteredCodeSnippets = state.dataset.codeSnippets.filter((snippet) => {
-    if (!combinedQuery) return true;
-    const haystack = [
-      snippet.conversationTitle,
-      snippet.language,
-      snippet.code,
-      snippet.role,
-      snippet.platform,
-    ].join(' ').toLowerCase();
-
-    return haystack.includes(combinedQuery);
-  });
-
   renderCodeList();
 }
 
@@ -899,6 +884,7 @@ function renderConversationList() {
 
     li.addEventListener('click', async () => {
       state.selectedConversationId = conversation.id;
+      const requestId = ++state._loadRequestId;
       state.exportTarget = getDefaultExportTarget(conversation.platform);
       els.exportTarget.value = state.exportTarget;
       state.chatQuery = '';
@@ -906,9 +892,9 @@ function renderConversationList() {
       els.exportStatus.textContent = '';
       renderConversationList();
 
-      // Lazy load full conversation detail from API
       els.chatContent.innerHTML = '<p class="meta">Loading conversation...</p>';
       const detail = await loadConversationDetail(conversation.id);
+      if (state._loadRequestId !== requestId) return; // stale response, user clicked another
       if (detail) {
         const idx = state.dataset.conversations.findIndex((c) => c.id === conversation.id);
         if (idx >= 0) {
@@ -937,7 +923,7 @@ function renderChat() {
 
   if (!conversation) {
     els.chatTitle.textContent = 'Select a conversation';
-    els.chatContent.innerHTML = '<p class="meta">Pick a chat on the left to view the full conversation + snapshots.</p>';
+    els.chatContent.innerHTML = '<p class="meta">Pick a chat on the left to view the full conversation.</p>';
     els.chatSearch.disabled = true;
     els.exportTarget.disabled = true;
     els.copyExportBtn.disabled = true;
@@ -953,26 +939,11 @@ function renderChat() {
   els.copyExportBtn.disabled = false;
   els.downloadExportBtn.disabled = false;
 
-  const allBlocks = [];
-  allBlocks.push(...conversation.messages.map((msg, index) => ({
+  const allBlocks = conversation.messages.map((msg, index) => ({
     ...msg,
     index,
     source: 'main'
-  })));
-
-  conversation.snapshots.forEach((snapshot, snapshotIndex) => {
-    allBlocks.push({
-      role: `Snapshot · ${formatDate(snapshot.captured)}`,
-      text: '',
-      snapshotHeader: true,
-    });
-    allBlocks.push(...snapshot.messages.map((message, index) => ({
-      ...message,
-      index,
-      snapshotIndex,
-      source: 'snapshot'
-    })));
-  });
+  }));
 
   const query = state.chatQuery;
   const matchingBlocks = allBlocks.filter((message) => {
@@ -982,7 +953,7 @@ function renderChat() {
 
   const previousTargetId = state.searchResults.matches[state.searchResults.currentIndex - 1] || '';
   state.searchResults.matches = matchingBlocks
-    .filter((block) => !block.snapshotHeader)
+
     .map((block) => getBlockDomId(block))
     .filter(Boolean);
   state.searchResults.total = state.searchResults.matches.length;
@@ -998,10 +969,6 @@ function renderChat() {
 
   const rendered = matchingBlocks
     .map((message) => {
-      if (message.snapshotHeader) {
-        return `<div class="snapshot-group"><div class="snapshot-title">${escapeHtml(message.role)}</div></div>`;
-      }
-
       const domId = getBlockDomId(message);
       const isCurrentResult = !!domId && domId === activeResultId;
       const roleNorm = (message.role || '').toLowerCase();
@@ -1075,8 +1042,13 @@ function renderCodeList() {
     return;
   }
 
+  const codeQuery = `${state.globalQuery} ${state.codeQuery}`.trim().toLowerCase();
   const snippets = state.filteredCodeSnippets
-    .filter((s) => s.conversationId === state.selectedConversationId)
+    .filter((s) => {
+      if (s.conversationId !== state.selectedConversationId) return false;
+      if (!codeQuery) return true;
+      return `${s.language} ${s.code} ${s.role}`.toLowerCase().includes(codeQuery);
+    })
     .slice(0, 300);
 
   if (!snippets.length) {
@@ -1086,7 +1058,7 @@ function renderCodeList() {
 
   snippets.forEach((snippet) => {
     const convId = state.selectedConversationId;
-    const source = snippet.fromSnapshot ? 'snapshot' : 'main';
+    const source = 'main';
     const snapshotIndex = snippet.snapshotIndex ?? null;
     const bookmarked = isMessageBookmarked(convId, source, snippet.messageIndex, snapshotIndex);
 
@@ -1108,9 +1080,7 @@ function renderCodeList() {
       <pre>${escapeHtml(snippet.code.slice(0, 250))}</pre>
     `;
 
-    const targetId = snippet.fromSnapshot && snippet.snapshotIndex !== undefined
-      ? `snapshot-${snippet.snapshotIndex}-message-${snippet.messageIndex}`
-      : `message-${snippet.messageIndex}`;
+    const targetId = `message-${snippet.messageIndex}`;
 
     // Navigate to the message when clicking the card body
     li.addEventListener('click', (e) => {
@@ -1315,7 +1285,6 @@ function buildExportPrompt(conversation, targetPlatform) {
     : targetPlatform === 'claude'
       ? 'Claude'
       : 'a general-purpose LLM assistant';
-  const snapshotCount = conversation.snapshots.length;
   const targetOpening = targetPlatform === 'generic'
     ? 'You are a general-purpose AI assistant.'
     : `You are ${targetName}.`;
@@ -1328,7 +1297,6 @@ function buildExportPrompt(conversation, targetPlatform) {
     'Do not summarize unless I ask; continue from the latest user intent.',
     `Conversation title: ${conversation.title}`,
     `Captured: ${formatDate(conversation.captured)}`,
-    `Included snapshots: ${snapshotCount}`,
     '',
     '--- BEGIN IMPORTED CONTEXT ---',
   ].join('\n');
@@ -1343,21 +1311,12 @@ function formatMessagesBlock(messages) {
 function buildExportPayload(conversation, targetPlatform) {
   const header = buildExportPrompt(conversation, targetPlatform);
   const mainConversation = [
-    '# Main Conversation',
+    '# Conversation',
     formatMessagesBlock(conversation.messages),
   ].join('\n\n');
 
-  const snapshots = conversation.snapshots
-    .map((snapshot, index) => {
-      return [
-        `# Snapshot ${index + 1} (${formatDate(snapshot.captured)})`,
-        formatMessagesBlock(snapshot.messages),
-      ].join('\n\n');
-    })
-    .join('\n\n');
-
   const footer = '\n\n--- END IMPORTED CONTEXT ---\n';
-  return [header, mainConversation, snapshots].filter(Boolean).join('\n\n') + footer;
+  return [header, mainConversation].join('\n\n') + footer;
 }
 
 async function copyTextToClipboard(value) {

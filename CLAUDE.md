@@ -6,7 +6,7 @@ This file is the persistent development log and reference for Claude Code sessio
 
 ## Project Overview
 
-A self-hosted web app that aggregates, indexes, and searches markdown conversation exports from multiple AI platforms (ChatGPT, Claude AI, Cline, Copilot, Codex, etc.).
+A self-hosted web app that aggregates, indexes, and searches AI conversations from multiple platforms (ChatGPT, Claude AI, Gemini, Copilot, DeepSeek, Perplexity, Grok, Mistral, HuggingChat, Poe). Conversations are captured by a Tampermonkey browser script and pushed directly to the app's API, stored in SQLite.
 
 **Production domain:** your-domain.com
 
@@ -14,10 +14,10 @@ A self-hosted web app that aggregates, indexes, and searches markdown conversati
 
 ## Stack
 
-- **Backend:** Node.js 18, Express 4, express-session, helmet, crypto (scrypt)
+- **Backend:** Node.js 18, Express 4, express-session, helmet, crypto (scrypt), better-sqlite3, nodemailer
 - **Frontend:** Vanilla JS (no framework), HTML5, CSS3 dark theme
-- **Storage:** File-based — no database. Markdown files + generated JSON index.
-- **Deployment:** Docker (multi-stage), Docker Compose, Traefik + Let's Encrypt
+- **Database:** SQLite (better-sqlite3) — stored in `.auth/aichats.db` (Docker volume)
+- **Deployment:** Docker (multi-stage), Docker Compose, Traefik + Let's Encrypt, GitHub Actions CI/CD
 
 ---
 
@@ -25,16 +25,15 @@ A self-hosted web app that aggregates, indexes, and searches markdown conversati
 
 | File | Role |
 |------|------|
-| `server.js` | Express server — multi-user auth endpoints, sessions, static serving, rate limiting |
-| `app/app.js` | Frontend SPA logic — state, filtering, search, rendering, export (27KB) |
-| `app/index.html` | Three-panel UI — conversation list, viewer, code snippets |
-| `app/styles.css` | Dark theme, platform badges, layout |
-| `app/scripts/build-index.mjs` | Build step — walks `/logs/conversations/`, parses markdown, outputs `app/data/conversations.json` |
-| `app/data/conversations.json` | Generated index (56 conversations, 14 snapshots as of 2026-03-22) |
-| `logs/conversations/` | Markdown source files organized by platform (claudeai/, chatgpt/, snapshots/) |
-| `.auth/users.json` | Scrypt-hashed multi-user credentials (id, email, username, salt, hash, verified, role, createdAt, changedAt). Migrated from legacy `credentials.json` on first run. |
-| `scripts/reset-admin-password.mjs` | CLI utility to reset admin password |
-| `.env` | Production env vars |
+| `server.js` | Express server — auth, conversation API, sessions, static serving, rate limiting |
+| `db.js` | SQLite database module — schema, CRUD, code snippet extraction, full-text search |
+| `app/app.js` | Frontend SPA logic — state, API calls, filtering, search, rendering, export |
+| `app/index.html` | Landing page + three-panel dashboard UI + auth overlays |
+| `app/styles.css` | Dark theme, platform badges, landing page, layout |
+| `.auth/users.json` | User accounts (id, email, username, salt, hash, verified, role, apiKey) |
+| `.auth/aichats.db` | SQLite database — conversations, messages, code_snippets tables |
+| `tampermonkey-script.example.md` | Tampermonkey browser script template (users fill in API_URL) |
+| `.env.example` | Environment variable template |
 
 ---
 
@@ -45,13 +44,21 @@ A self-hosted web app that aggregates, indexes, and searches markdown conversati
 | GET | `/health` | No | Docker health check |
 | GET | `/api/auth/session` | No | Check auth status |
 | POST | `/api/auth/login` | No | Authenticate (email + password) |
-| POST | `/api/auth/logout` | Yes | Clear session |
+| POST | `/api/auth/logout` | Session | Clear session |
 | POST | `/api/auth/register` | No | Register new account (sends 6-digit code) |
 | POST | `/api/auth/verify-email` | No | Verify email with 6-digit code, auto-login |
 | POST | `/api/auth/resend-verification` | No | Resend verification code |
 | POST | `/api/auth/forgot-password` | No | Send password reset link (1hr token) |
 | POST | `/api/auth/reset-password` | No | Reset password with URL token |
-| POST | `/api/auth/change-password` | Yes | Update password (logged-in users) |
+| POST | `/api/auth/change-password` | Session | Update password (logged-in users) |
+| GET | `/api/auth/api-key` | Session | Get user's Tampermonkey API key |
+| POST | `/api/auth/regenerate-api-key` | Session | Regenerate API key |
+| POST | `/api/conversations` | API Key | Ingest conversation (Tampermonkey → app) |
+| GET | `/api/conversations` | Session | List user's conversations (filterable) |
+| GET | `/api/conversations/:id` | Session | Get conversation with messages + code snippets |
+| DELETE | `/api/conversations/:id` | Session | Delete conversation |
+| GET | `/api/stats` | Session | Get user's conversation/message/snippet counts |
+| GET | `/api/search` | Session | Full-text search across user's messages |
 | GET | `/*` | No | Static file serving |
 
 ---
@@ -143,14 +150,11 @@ Production container: non-root user (`nodejs:1001`), read-only filesystem, tmpfs
 
 ## Known Issues / Technical Debt
 
-1. **`.env` in git** — production `SESSION_SECRET` and `APP_ADMIN_PASSWORD` exposed in version control. Should be removed and rotated.
-2. **CSP disabled** — `server.js` disables Content-Security-Policy in helmet config.
-3. **In-memory rate limiting** — resets on server restart; won't work across multiple instances.
-4. **Memory-only session store** — sessions lost on restart; no Redis/persistent store.
+1. **CSP disabled** — `server.js` disables Content-Security-Policy in helmet config.
+2. **In-memory rate limiting** — resets on server restart; won't work across multiple instances.
+3. **Memory-only session store** — sessions lost on restart; no Redis/persistent store.
+4. **In-memory pending verifications / reset tokens** — lost on restart; users must re-request.
 5. **CORS allows any localhost origin** — fine for dev, but not environment-scoped.
-6. **Hardcoded default password** — fallback `APP_ADMIN_PASSWORD: '(see .env)'` in `server.js`.
-7. **Fragile markdown parsing** — regex-based, assumes `## User` / `## Assistant` heading structure.
-8. **No code snippets indexed** — build script extracts them but current data yields 0 (possible format mismatch).
 
 ---
 
