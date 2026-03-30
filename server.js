@@ -71,12 +71,13 @@ app.post('/api/webhook/xendit', express.json({ limit: '1mb' }), async (req, res)
     if (event === 'recurring.plan.activated' || event === 'recurring.cycle.succeeded') {
       const nextMonth = new Date();
       nextMonth.setMonth(nextMonth.getMonth() + 1);
+      const tier = user.storage_tier || 1;
       await db.updateSubscription(user.id, {
         status: 'active',
         expiresAt: nextMonth.toISOString(),
-        upgradeToPremium: true,
+        storageTier: tier,
       });
-      console.log(`Webhook: upgraded user ${user.email} to premium`);
+      console.log(`Webhook: upgraded user ${user.email} to premium (tier ${tier}, ${tier * 5} GB)`);
     } else if (event === 'recurring.plan.inactivated') {
       await db.updateSubscription(user.id, { status: 'cancelled' });
       console.log(`Webhook: cancelled subscription for ${user.email}`);
@@ -450,7 +451,8 @@ app.post('/api/subscription/create', requireAuth, async (req, res) => {
         const existing = await xendit.getPlan(user.xendit_plan_id);
         if (existing.status === 'ACTIVE') {
           const nextMonth = new Date(); nextMonth.setMonth(nextMonth.getMonth() + 1);
-          await db.updateSubscription(user.id, { status: 'active', expiresAt: nextMonth.toISOString(), upgradeToPremium: true });
+          const tier = user.storage_tier || 1;
+          await db.updateSubscription(user.id, { status: 'active', expiresAt: nextMonth.toISOString(), storageTier: tier });
           res.json({ ok: true, tier: 'premium' });
           return;
         }
@@ -465,10 +467,13 @@ app.post('/api/subscription/create', requireAuth, async (req, res) => {
       return;
     }
 
+    // New subscribers start at tier 1 ($2/mo for 5 GB)
+    const initialTier = 1;
     const plan = await xendit.createRecurringPlan({
       customerId: customer.id,
       userId: user.id,
       email: user.email,
+      amount: db.priceForTier(initialTier),
       returnUrl: `${APP_URL}/?subscription=success`,
       cancelUrl: `${APP_URL}/?subscription=cancelled`,
     });
@@ -501,10 +506,11 @@ app.post('/api/subscription/activate', requireAuth, async (req, res) => {
     if (plan.status === 'ACTIVE') {
       const nextMonth = new Date();
       nextMonth.setMonth(nextMonth.getMonth() + 1);
+      const tier = user.storage_tier || 1;
       await db.updateSubscription(user.id, {
         status: 'active',
         expiresAt: nextMonth.toISOString(),
-        upgradeToPremium: true,
+        storageTier: tier,
       });
       res.json({ ok: true, tier: 'premium' });
     } else {
@@ -534,6 +540,46 @@ app.post('/api/subscription/cancel', requireAuth, async (req, res) => {
   }
 });
 
+app.post('/api/subscription/upgrade-storage', requireAuth, async (req, res) => {
+  if (!xendit.isConfigured()) {
+    res.status(503).json({ ok: false, error: 'Payment gateway not configured.' });
+    return;
+  }
+
+  try {
+    const user = await db.getUserAccount(req.session.user.userId);
+    if (user.tier !== 'premium' || user.subscription_status !== 'active') {
+      res.status(400).json({ ok: false, error: 'You need an active premium subscription to upgrade storage.' });
+      return;
+    }
+
+    const currentTier = user.storage_tier || 1;
+    if (currentTier >= db.MAX_STORAGE_TIER) {
+      res.status(400).json({ ok: false, error: `Maximum storage tier reached (${currentTier * 5} GB).` });
+      return;
+    }
+
+    const newTier = currentTier + 1;
+    const newAmount = db.priceForTier(newTier);
+
+    // Update the recurring plan amount at Xendit for next billing cycle
+    await xendit.updatePlanAmount(user.xendit_plan_id, newAmount);
+
+    // Immediately increase the user's storage limit
+    await db.updateSubscription(user.id, { storageTier: newTier });
+
+    res.json({
+      ok: true,
+      storageTier: newTier,
+      storageLimitBytes: db.storageBytesForTier(newTier),
+      monthlyPriceCents: newAmount,
+    });
+  } catch (e) {
+    console.error('Storage upgrade error:', e.message);
+    res.status(500).json({ ok: false, error: 'Failed to upgrade storage. Please try again.' });
+  }
+});
+
 // ─── Conversation API ─────────────────────────────────────────────────────────
 
 app.post('/api/conversations', async (req, res) => {
@@ -559,18 +605,28 @@ app.post('/api/conversations', async (req, res) => {
 
     // Process attachments if present
     let savedAttachments = 0;
+    const skippedAttachments = [];
+    let addedBytes = 0;
+
     if (Array.isArray(attachments) && attachments.length > 0) {
       for (const att of attachments) {
         if (!att.fileName || !att.mimeType || !att.data) continue;
 
         // Tier enforcement: free users can only upload text files
-        if (user.tier === 'free' && !storage.isFreeAllowed(att.mimeType)) continue;
+        if (user.tier === 'free' && !storage.isFreeAllowed(att.mimeType)) {
+          skippedAttachments.push({ fileName: att.fileName, reason: 'free_tier' });
+          continue;
+        }
 
-        // Premium storage quota check
-        if (user.tier === 'premium') {
-          const fileSize = Buffer.byteLength(att.data, 'base64');
-          if (user.storage_used_bytes + fileSize > user.storage_limit_bytes) {
-            continue; // skip files over quota
+        // Storage quota check (tracks bytes added in this request to avoid stale data)
+        // Note: pg returns BIGINT as strings, so cast to Number for comparison
+        const storageLimit = Number(user.storage_limit_bytes) || 0;
+        if (storageLimit > 0) {
+          const storageUsed = Number(user.storage_used_bytes) || 0;
+          const estimatedSize = Buffer.byteLength(att.data, 'base64');
+          if (storageUsed + addedBytes + estimatedSize > storageLimit) {
+            skippedAttachments.push({ fileName: att.fileName, reason: 'quota_exceeded' });
+            continue;
           }
         }
 
@@ -588,11 +644,20 @@ app.post('/api/conversations', async (req, res) => {
         });
 
         await db.addStorageUsed(user.id, fileSize);
+        addedBytes += fileSize;
         savedAttachments++;
       }
     }
 
-    res.json({ ok: true, ...result, savedAttachments });
+    const response = { ok: true, ...result, savedAttachments };
+    if (skippedAttachments.length > 0) {
+      response.skippedAttachments = skippedAttachments;
+      const quotaSkipped = skippedAttachments.filter(s => s.reason === 'quota_exceeded');
+      if (quotaSkipped.length > 0) {
+        response.quotaWarning = `${quotaSkipped.length} file(s) skipped — storage quota exceeded. Upgrade your storage in Settings.`;
+      }
+    }
+    res.json(response);
   } catch (e) {
     console.error('Upsert error:', e.message);
     res.status(500).json({ ok: false, error: 'Failed to save conversation.' });

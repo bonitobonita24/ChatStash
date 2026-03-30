@@ -76,6 +76,7 @@ async function migrate() {
     await addCol('users', 'xendit_plan_id', 'TEXT');
     await addCol('users', 'subscription_status', "TEXT NOT NULL DEFAULT 'none'");
     await addCol('users', 'subscription_expires_at', 'TIMESTAMPTZ');
+    await addCol('users', 'storage_tier', 'INTEGER NOT NULL DEFAULT 0');
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS attachments (
@@ -389,7 +390,7 @@ async function subtractStorageUsed(userId, bytes) {
 
 async function getUserAccount(userId) {
   const { rows } = await pool.query(
-    `SELECT id, email, username, role, tier, storage_used_bytes, storage_limit_bytes,
+    `SELECT id, email, username, role, tier, storage_tier, storage_used_bytes, storage_limit_bytes,
      xendit_plan_id, subscription_status, subscription_expires_at, created_at
      FROM users WHERE id = $1`,
     [userId]
@@ -400,10 +401,11 @@ async function getUserAccount(userId) {
   // Lazy expiration: downgrade cancelled subscriptions past their expiry
   if (user.subscription_status === 'cancelled' && user.subscription_expires_at && new Date(user.subscription_expires_at) < new Date()) {
     await pool.query(
-      "UPDATE users SET tier = 'free', storage_limit_bytes = 0, subscription_status = 'expired' WHERE id = $1",
+      "UPDATE users SET tier = 'free', storage_tier = 0, storage_limit_bytes = 0, subscription_status = 'expired' WHERE id = $1",
       [userId]
     );
     user.tier = 'free';
+    user.storage_tier = 0;
     user.storage_limit_bytes = 0;
     user.subscription_status = 'expired';
   }
@@ -413,9 +415,19 @@ async function getUserAccount(userId) {
 
 // ─── Subscription helpers ────────────────────────────────────────────────────
 
-const PREMIUM_STORAGE_BYTES = 5 * 1024 * 1024 * 1024; // 5GB
+const STORAGE_INCREMENT_BYTES = 5 * 1024 * 1024 * 1024; // 5 GB per tier
+const PRICE_PER_TIER_CENTS = 200; // $2 per 5 GB tier
+const MAX_STORAGE_TIER = 20; // cap at 100 GB / $40 per month
 
-async function updateSubscription(userId, { xenditPlanId, status, expiresAt, upgradeToPremium }) {
+function storageBytesForTier(tier) {
+  return tier * STORAGE_INCREMENT_BYTES;
+}
+
+function priceForTier(tier) {
+  return tier * PRICE_PER_TIER_CENTS;
+}
+
+async function updateSubscription(userId, { xenditPlanId, status, expiresAt, storageTier }) {
   const sets = ['changed_at = NOW()'];
   const params = [];
   let idx = 1;
@@ -423,9 +435,10 @@ async function updateSubscription(userId, { xenditPlanId, status, expiresAt, upg
   if (xenditPlanId !== undefined) { sets.push(`xendit_plan_id = $${idx++}`); params.push(xenditPlanId); }
   if (status !== undefined) { sets.push(`subscription_status = $${idx++}`); params.push(status); }
   if (expiresAt !== undefined) { sets.push(`subscription_expires_at = $${idx++}`); params.push(expiresAt); }
-  if (upgradeToPremium) {
+  if (storageTier !== undefined) {
     sets.push(`tier = 'premium'`);
-    sets.push(`storage_limit_bytes = ${PREMIUM_STORAGE_BYTES}`);
+    sets.push(`storage_tier = $${idx++}`); params.push(storageTier);
+    sets.push(`storage_limit_bytes = $${idx++}`); params.push(storageBytesForTier(storageTier));
   }
 
   params.push(userId);
@@ -463,5 +476,9 @@ module.exports = {
   subtractStorageUsed,
   updateSubscription,
   findUserByXenditPlanId,
-  PREMIUM_STORAGE_BYTES,
+  STORAGE_INCREMENT_BYTES,
+  PRICE_PER_TIER_CENTS,
+  MAX_STORAGE_TIER,
+  storageBytesForTier,
+  priceForTier,
 };

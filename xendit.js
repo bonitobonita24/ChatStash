@@ -4,7 +4,6 @@
 const XENDIT_SECRET_KEY = process.env.XENDIT_SECRET_KEY || '';
 const XENDIT_CALLBACK_TOKEN = process.env.XENDIT_CALLBACK_TOKEN || '';
 const XENDIT_BASE = 'https://api.xendit.co';
-const PLAN_AMOUNT = Number(process.env.XENDIT_PLAN_AMOUNT || 200); // $2 = 200 cents or equivalent
 const PLAN_CURRENCY = process.env.XENDIT_PLAN_CURRENCY || 'PHP';
 
 function authHeader() {
@@ -53,13 +52,13 @@ async function getOrCreateCustomer({ userId, email, username }) {
 }
 
 // Create a recurring plan for a user
-async function createRecurringPlan({ customerId, userId, email, returnUrl, cancelUrl }) {
+async function createRecurringPlan({ customerId, userId, email, amount, returnUrl, cancelUrl }) {
   return xenditRequest('POST', '/recurring/plans', {
     reference_id: `plan_${userId}_${Date.now()}`,
     customer_id: customerId,
     recurring_action: 'PAYMENT',
     currency: PLAN_CURRENCY,
-    amount: PLAN_AMOUNT,
+    amount,
     schedule: {
       reference_id: `schedule_${userId}_${Date.now()}`,
       interval: 'MONTH',
@@ -86,6 +85,13 @@ async function getPlan(planId) {
   return xenditRequest('GET', `/recurring/plans/${planId}`);
 }
 
+// Update plan amount (for storage tier upgrades)
+async function updatePlanAmount(planId, newAmount) {
+  return xenditRequest('PATCH', `/recurring/plans/${planId}`, {
+    amount: newAmount,
+  });
+}
+
 // Deactivate (cancel) a plan
 async function deactivatePlan(planId) {
   return xenditRequest('POST', `/recurring/plans/${planId}/deactivate`);
@@ -104,10 +110,10 @@ function isConfigured() {
 module.exports = {
   getOrCreateCustomer,
   createRecurringPlan,
+  updatePlanAmount,
   getPlan,
   deactivatePlan,
   verifyWebhook,
   isConfigured,
-  PLAN_AMOUNT,
   PLAN_CURRENCY,
 };

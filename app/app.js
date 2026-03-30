@@ -487,6 +487,8 @@ function bindAuthEvents() {
 
         const storageBarSection = document.getElementById('storageBarSection');
         const upgradeHint = document.getElementById('upgradeHint');
+        const upgradeStorageBtn = document.getElementById('upgradeStorageBtn');
+        const monthlyPriceLabel = document.getElementById('monthlyPriceLabel');
 
         if (isPremium) {
           storageBarSection.hidden = false;
@@ -495,12 +497,29 @@ function bindAuthEvents() {
           const limit = Number(acct.storage_limit_bytes || 0);
           const pct = limit > 0 ? Math.min(100, (used / limit) * 100) : 0;
           storageBarFill.style.width = `${pct}%`;
+          // Warn when storage is over 80% full
+          storageBarFill.style.background = pct >= 80 ? '#ff6b6b' : '';
           storageLabel.textContent = limit > 0
             ? `${formatBytes(used)} / ${formatBytes(limit)} used`
             : `${formatBytes(used)} used`;
+
+          // Show current monthly price and upgrade button
+          const currentTier = acct.storage_tier || 1;
+          const monthlyPrice = currentTier * 2;
+          monthlyPriceLabel.textContent = `Current plan: $${monthlyPrice}/mo for ${currentTier * 5} GB`;
+          monthlyPriceLabel.hidden = false;
+
+          if (acct.subscription_status === 'active' && currentTier < 20) {
+            upgradeStorageBtn.textContent = `Add 5 GB (+$2/mo → $${(currentTier + 1) * 2}/mo)`;
+            upgradeStorageBtn.hidden = false;
+          } else {
+            upgradeStorageBtn.hidden = true;
+          }
         } else {
           storageBarSection.hidden = true;
           upgradeHint.hidden = false;
+          upgradeStorageBtn.hidden = true;
+          monthlyPriceLabel.hidden = true;
         }
 
         // Subscription buttons
@@ -613,6 +632,51 @@ function bindAuthEvents() {
       document.getElementById('upgradeBtn').hidden = false;
     } catch {
       setAuthStatus(subStatus, 'Cancel failed. Please try again.', 'error');
+    }
+  });
+
+  // Upgrade storage (+5 GB)
+  document.getElementById('upgradeStorageBtn')?.addEventListener('click', async () => {
+    const btn = document.getElementById('upgradeStorageBtn');
+    const currentText = btn.textContent;
+    if (!confirm(`Upgrade your storage? Your monthly rate will increase by $2. ${currentText}`)) return;
+    const subStatus = document.getElementById('subStatus');
+    btn.disabled = true;
+    setAuthStatus(subStatus, 'Upgrading storage...', 'success');
+    try {
+      const resp = await apiPost('/api/subscription/upgrade-storage', {});
+      if (!resp.ok) {
+        setAuthStatus(subStatus, resp.error || 'Storage upgrade failed.', 'error');
+        btn.disabled = false;
+        return;
+      }
+      const newTier = resp.storageTier;
+      setAuthStatus(subStatus, `Storage upgraded to ${newTier * 5} GB. New rate: $${newTier * 2}/mo.`, 'success');
+      // Update UI immediately
+      const monthlyPriceLabel = document.getElementById('monthlyPriceLabel');
+      monthlyPriceLabel.textContent = `Current plan: $${newTier * 2}/mo for ${newTier * 5} GB`;
+      const storageLabel = document.getElementById('storageLabel');
+      const storageBarFill = document.getElementById('storageBarFill');
+      const newLimit = resp.storageLimitBytes;
+      const currentUsedText = storageLabel.textContent.match(/^[\d.]+ \w+/)?.[0] || '0 B';
+      storageLabel.textContent = `${currentUsedText} / ${formatBytes(newLimit)} used`;
+      // Recalculate bar percentage
+      const usedMatch = currentUsedText.match(/([\d.]+)\s*(\w+)/);
+      if (usedMatch && newLimit > 0) {
+        const pct = Math.min(100, (parseFloat(usedMatch[1]) * bytesMultiplier(usedMatch[2]) / newLimit) * 100);
+        storageBarFill.style.width = `${pct}%`;
+        storageBarFill.style.background = pct >= 80 ? '#ff6b6b' : '';
+      }
+      // Update button for next tier
+      if (newTier < 20) {
+        btn.textContent = `Add 5 GB (+$2/mo → $${(newTier + 1) * 2}/mo)`;
+        btn.disabled = false;
+      } else {
+        btn.hidden = true;
+      }
+    } catch {
+      setAuthStatus(subStatus, 'Storage upgrade failed. Please try again.', 'error');
+      btn.disabled = false;
     }
   });
 
@@ -955,6 +1019,11 @@ function formatBytes(bytes) {
   const units = ['B', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
   return `${(bytes / Math.pow(1024, i)).toFixed(i > 1 ? 1 : 0)} ${units[i]}`;
+}
+
+function bytesMultiplier(unit) {
+  const map = { B: 1, KB: 1024, MB: 1024 ** 2, GB: 1024 ** 3 };
+  return map[unit] || 1;
 }
 
 function renderStats() {
