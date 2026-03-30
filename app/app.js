@@ -1483,17 +1483,125 @@ function renderMessageAttachments(messageIndex) {
 }
 
 function renderText(text, highlightQuery) {
-  const escaped = escapeHtml(text);
-  const codeTransformed = escaped.replace(/```([a-zA-Z0-9_+-]*)\n([\s\S]*?)```/g, (_, lang, code) => {
-    return `<pre><code data-language="${lang || 'plaintext'}">${code.trim()}</code></pre>`;
+  const html = markdownToHtml(text);
+  if (!highlightQuery) return html;
+  const pattern = escapeRegex(highlightQuery);
+  return html.replace(new RegExp(`(${pattern})`, 'gi'), '<mark>$1</mark>');
+}
+
+function markdownToHtml(text) {
+  // Extract fenced code blocks first to protect them from inline processing
+  const codeBlocks = [];
+  let processed = text.replace(/```([a-zA-Z0-9_+-]*)\n([\s\S]*?)```/g, (_, lang, code) => {
+    const idx = codeBlocks.length;
+    codeBlocks.push(`<pre><code data-language="${escapeHtml(lang || 'plaintext')}">${escapeHtml(code.trimEnd())}</code></pre>`);
+    return `\x00CODE${idx}\x00`;
   });
 
-  if (!highlightQuery) return codeTransformed.replace(/\n/g, '<br>');
+  // Split into blocks by double newlines
+  const blocks = processed.split(/\n{2,}/);
+  const htmlBlocks = [];
 
-  const pattern = escapeRegex(highlightQuery);
-  return codeTransformed
-    .replace(/\n/g, '<br>')
-    .replace(new RegExp(`(${pattern})`, 'gi'), '<mark>$1</mark>');
+  for (const block of blocks) {
+    const trimmed = block.trim();
+    if (!trimmed) continue;
+
+    // Code block placeholder
+    if (/^\x00CODE\d+\x00$/.test(trimmed)) {
+      htmlBlocks.push(trimmed);
+      continue;
+    }
+
+    // Headings
+    const headingMatch = trimmed.match(/^(#{1,6})\s+(.+)$/);
+    if (headingMatch) {
+      const level = headingMatch[1].length;
+      htmlBlocks.push(`<h${level}>${inlineMarkdown(headingMatch[2])}</h${level}>`);
+      continue;
+    }
+
+    // Horizontal rule
+    if (/^[-*_]{3,}$/.test(trimmed)) {
+      htmlBlocks.push('<hr>');
+      continue;
+    }
+
+    // Blockquote
+    if (trimmed.startsWith('> ')) {
+      const content = trimmed.split('\n').map(l => l.replace(/^>\s?/, '')).join('\n');
+      htmlBlocks.push(`<blockquote>${markdownToHtml(content)}</blockquote>`);
+      continue;
+    }
+
+    // Unordered list
+    if (/^[-*+]\s/.test(trimmed)) {
+      const items = parseListItems(trimmed, /^[-*+]\s/);
+      htmlBlocks.push('<ul>' + items.map(li => `<li>${inlineMarkdown(li)}</li>`).join('') + '</ul>');
+      continue;
+    }
+
+    // Ordered list
+    if (/^\d+\.\s/.test(trimmed)) {
+      const items = parseListItems(trimmed, /^\d+\.\s/);
+      htmlBlocks.push('<ol>' + items.map(li => `<li>${inlineMarkdown(li)}</li>`).join('') + '</ol>');
+      continue;
+    }
+
+    // Table
+    const lines = trimmed.split('\n');
+    if (lines.length >= 2 && lines[0].includes('|') && /^\|?\s*-{3,}/.test(lines[1])) {
+      const parseRow = (row) => row.replace(/^\||\|$/g, '').split('|').map(c => inlineMarkdown(c.trim()));
+      const headers = parseRow(lines[0]);
+      const bodyRows = lines.slice(2).filter(l => l.includes('|')).map(parseRow);
+      let table = '<table><thead><tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr></thead>';
+      if (bodyRows.length) {
+        table += '<tbody>' + bodyRows.map(r => '<tr>' + r.map(c => `<td>${c}</td>`).join('') + '</tr>').join('') + '</tbody>';
+      }
+      table += '</table>';
+      htmlBlocks.push(table);
+      continue;
+    }
+
+    // Default: paragraph (handle single newlines as <br>)
+    htmlBlocks.push('<p>' + inlineMarkdown(trimmed).replace(/\n/g, '<br>') + '</p>');
+  }
+
+  // Restore code blocks
+  return htmlBlocks.join('\n').replace(/\x00CODE(\d+)\x00/g, (_, idx) => codeBlocks[idx]);
+}
+
+function parseListItems(text, startPattern) {
+  const items = [];
+  let current = '';
+  for (const line of text.split('\n')) {
+    if (startPattern.test(line.trim())) {
+      if (current) items.push(current.trim());
+      current = line.trim().replace(startPattern, '');
+    } else {
+      current += '\n' + line.trim();
+    }
+  }
+  if (current) items.push(current.trim());
+  return items;
+}
+
+function inlineMarkdown(text) {
+  let html = escapeHtml(text);
+  // Inline code (must come first to protect from other transforms)
+  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+  // Bold + italic
+  html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+  // Bold
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  // Italic
+  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  // Strikethrough
+  html = html.replace(/~~(.+?)~~/g, '<del>$1</del>');
+  // Links
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  // Images
+  html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" loading="lazy" style="max-width:100%;border-radius:8px;">');
+  return html;
 }
 
 function getCurrentConversation() {

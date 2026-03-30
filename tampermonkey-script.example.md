@@ -48,6 +48,96 @@
   // ━━━ HELPERS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+  // Convert DOM element's innerHTML to Markdown, preserving formatting
+  function htmlToMarkdown(el) {
+    if (!el) return "";
+    const clone = el.cloneNode(true);
+    // Remove UI chrome that platforms inject
+    clone.querySelectorAll(
+      'button, [role="button"], svg, form, [class*="action"], [class*="toolbar"], ' +
+      '[class*="copy"], [class*="vote"], [class*="footer"], [class*="controls"], ' +
+      '[class*="opacity-0"], .sr-only, [aria-hidden="true"]'
+    ).forEach(n => n.remove());
+    return nodeToMd(clone).replace(/\n{3,}/g, "\n\n").trim();
+  }
+
+  function nodeToMd(node) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return node.textContent;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return "";
+
+    const tag = node.tagName.toLowerCase();
+
+    // Code blocks: <pre> containing <code>
+    if (tag === "pre") {
+      const code = node.querySelector("code");
+      const lang = (code?.className?.match(/language-(\S+)/)?.[1] || code?.getAttribute("data-language") || "").replace("language-", "");
+      const text = (code || node).textContent.trimEnd();
+      return "\n\n```" + lang + "\n" + text + "\n```\n\n";
+    }
+
+    // Inline code
+    if (tag === "code") {
+      return "`" + node.textContent + "`";
+    }
+
+    // Recurse into children
+    const children = Array.from(node.childNodes).map(nodeToMd).join("");
+
+    switch (tag) {
+      case "strong": case "b": return "**" + children.trim() + "**";
+      case "em": case "i": return "*" + children.trim() + "*";
+      case "del": case "s": return "~~" + children.trim() + "~~";
+      case "h1": return "\n\n# " + children.trim() + "\n\n";
+      case "h2": return "\n\n## " + children.trim() + "\n\n";
+      case "h3": return "\n\n### " + children.trim() + "\n\n";
+      case "h4": return "\n\n#### " + children.trim() + "\n\n";
+      case "h5": return "\n\n##### " + children.trim() + "\n\n";
+      case "h6": return "\n\n###### " + children.trim() + "\n\n";
+      case "p": return "\n\n" + children + "\n\n";
+      case "br": return "\n";
+      case "hr": return "\n\n---\n\n";
+      case "blockquote": return "\n\n" + children.trim().split("\n").map(l => "> " + l).join("\n") + "\n\n";
+      case "a": {
+        const href = node.getAttribute("href") || "";
+        const text = children.trim();
+        return href && text ? `[${text}](${href})` : text;
+      }
+      case "img": {
+        const alt = node.getAttribute("alt") || "image";
+        const src = node.getAttribute("src") || "";
+        return src ? `![${alt}](${src})` : "";
+      }
+      case "ul": {
+        const items = Array.from(node.children)
+          .filter(c => c.tagName?.toLowerCase() === "li")
+          .map(li => "- " + nodeToMd(li).trim().replace(/\n/g, "\n  "));
+        return "\n\n" + items.join("\n") + "\n\n";
+      }
+      case "ol": {
+        const items = Array.from(node.children)
+          .filter(c => c.tagName?.toLowerCase() === "li")
+          .map((li, i) => (i + 1) + ". " + nodeToMd(li).trim().replace(/\n/g, "\n   "));
+        return "\n\n" + items.join("\n") + "\n\n";
+      }
+      case "li": return children;
+      case "table": {
+        const rows = Array.from(node.querySelectorAll("tr"));
+        if (!rows.length) return children;
+        const md = [];
+        rows.forEach((tr, ri) => {
+          const cells = Array.from(tr.querySelectorAll("th, td")).map(c => nodeToMd(c).trim().replace(/\|/g, "\\|"));
+          md.push("| " + cells.join(" | ") + " |");
+          if (ri === 0) md.push("| " + cells.map(() => "---").join(" | ") + " |");
+        });
+        return "\n\n" + md.join("\n") + "\n\n";
+      }
+      case "div": return children;
+      default: return children;
+    }
+  }
+
   function simpleHash(str) {
     let h = 0;
     for (let i = 0; i < str.length; i++) h = ((h << 5) - h + str.charCodeAt(i)) | 0;
@@ -194,7 +284,7 @@
     document.querySelectorAll("[data-message-author-role]").forEach((el) => {
       const role = el.getAttribute("data-message-author-role");
       const prose = el.querySelector(".markdown, .prose, [class*='markdown'], [class*='prose']") || el;
-      const text = (prose.innerText || "").trim();
+      const text = htmlToMarkdown(prose) || (prose.innerText || "").trim();
       if (text) msgs.push({ role: role === "user" ? "User" : "Assistant", text, _el: el });
     });
     return msgs;
@@ -231,20 +321,14 @@
       for (const child of container.children) {
         const userMsg = child.querySelector('[data-testid="user-message"]');
         if (userMsg) {
-          const text = (userMsg.innerText || "").trim();
+          const text = htmlToMarkdown(userMsg) || (userMsg.innerText || "").trim();
           if (text) {
             const key = text.slice(0, 100);
             if (!collected.has(key)) collected.set(key, { role: "User", text, _el: child });
           }
         } else {
-          // Assistant turn — clone and strip UI chrome
-          const clone = child.cloneNode(true);
-          clone.querySelectorAll(
-            'button, [role="button"], svg, form, [class*="action"], [class*="toolbar"], ' +
-            '[class*="copy"], [class*="vote"], [class*="footer"], [class*="controls"], ' +
-            '[class*="opacity-0"]'
-          ).forEach(n => n.remove());
-          const text = (clone.innerText || "").trim();
+          // Assistant turn — htmlToMarkdown handles UI chrome stripping internally
+          const text = htmlToMarkdown(child);
           if (text && text.length > 10) {
             const key = text.slice(0, 100);
             if (!collected.has(key)) collected.set(key, { role: "Assistant", text, _el: child });
@@ -303,7 +387,7 @@
       const els = document.querySelectorAll(sel);
       if (els.length >= 2) {
         els.forEach((el, i) => {
-          const text = (el.innerText || "").trim();
+          const text = htmlToMarkdown(el) || (el.innerText || "").trim();
           if (text && text.length > 5) {
             msgs.push({ role: i % 2 === 0 ? "User" : "Assistant", text, _el: el });
           }
@@ -314,7 +398,7 @@
 
     const main = document.querySelector("main");
     if (main) {
-      const text = (main.innerText || "").trim();
+      const text = htmlToMarkdown(main) || (main.innerText || "").trim();
       if (text) msgs.push({ role: "Conversation", text, _el: main });
     }
     return msgs;
