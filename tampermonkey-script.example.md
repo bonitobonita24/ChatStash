@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         AI Chat Archiver
-// @namespace    ai-chat-consolidator
+// @name         ChatStash
+// @namespace    chatstash
 // @version      5.0.0
-// @description  Auto-save AI conversations with images and files to your AI Chat Consolidator dashboard
+// @description  Auto-save AI conversations with images and files to your ChatStash dashboard
 // @match        https://chat.openai.com/*
 // @match        https://chatgpt.com/*
 // @match        https://claude.ai/*
@@ -27,7 +27,7 @@
   "use strict";
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // CONFIG — Change this to your AI Chat Consolidator URL
+  // CONFIG — Change this to your ChatStash URL
   //
   // If you self-host: use your domain (e.g. "https://aichat.example.com")
   // The API key is set via the "Set API Key" button in the panel
@@ -510,7 +510,7 @@
       el.id = "ai-archiver-toast";
       Object.assign(el.style, {
         position: "fixed", bottom: "20px", right: "20px", zIndex: "99999",
-        background: "#1a2130", color: "#e5ecff", border: "1px solid #7ba2ff",
+        background: "#151024", color: "#ede9fe", border: "1px solid #a78bfa",
         borderRadius: "8px", padding: "10px 16px", fontSize: "13px",
         fontFamily: "system-ui", maxWidth: "320px", boxShadow: "0 4px 20px rgba(0,0,0,.4)",
         whiteSpace: "pre-wrap", lineHeight: "1.4",
@@ -535,23 +535,30 @@
     return btn;
   }
 
-  function enableDrag(wrap, handle) {
-    let dragging = false, startX, startY, origLeft, origTop;
-    handle.addEventListener("mousedown", (e) => {
-      dragging = true; startX = e.clientX; startY = e.clientY;
-      const rect = wrap.getBoundingClientRect();
-      origLeft = rect.left; origTop = rect.top; e.preventDefault();
-    });
+  function enableDrag(wrap, ...handles) {
+    let dragging = false, startX, startY, origLeft, origTop, moved;
+    for (const handle of handles) {
+      handle.style.cursor = "move";
+      handle.addEventListener("mousedown", (e) => {
+        dragging = true; moved = false;
+        startX = e.clientX; startY = e.clientY;
+        const rect = wrap.getBoundingClientRect();
+        origLeft = rect.left; origTop = rect.top; e.preventDefault();
+      });
+    }
     document.addEventListener("mousemove", (e) => {
       if (!dragging) return;
-      wrap.style.left = `${origLeft + e.clientX - startX}px`;
-      wrap.style.top = `${origTop + e.clientY - startY}px`;
+      const dx = e.clientX - startX, dy = e.clientY - startY;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
+      wrap.style.left = `${origLeft + dx}px`;
+      wrap.style.top = `${origTop + dy}px`;
       wrap.style.right = "auto"; wrap.style.bottom = "auto";
     });
     document.addEventListener("mouseup", () => {
       if (!dragging) return; dragging = false;
-      GM_setValue(K_PANEL_POS, JSON.stringify({ left: parseInt(wrap.style.left), top: parseInt(wrap.style.top) }));
+      if (moved) GM_setValue(K_PANEL_POS, JSON.stringify({ left: parseInt(wrap.style.left), top: parseInt(wrap.style.top) }));
     });
+    wrap._wasDrag = () => moved;
   }
 
   function mountUI() {
@@ -559,7 +566,7 @@
     if (!document.body) return;
 
     const platform = detectPlatform();
-    const label = platform.charAt(0).toUpperCase() + platform.slice(1) + " Archiver";
+    const label = "ChatStash";
     const isCollapsed = GM_getValue(K_COLLAPSED, true); // collapsed (small) by default
     const savedPos = GM_getValue(K_PANEL_POS, null);
     const pos = savedPos ? JSON.parse(savedPos) : null;
@@ -663,10 +670,11 @@
       panel.style.display = collapsed ? "none" : "block";
     }
 
-    fab.onclick = () => {
+    fab.addEventListener("click", () => {
+      if (wrap._wasDrag()) return; // ignore if it was a drag
       GM_setValue(K_COLLAPSED, false);
       applyCollapse(false);
-    };
+    });
 
     closeBtn.onclick = () => {
       GM_setValue(K_COLLAPSED, true);
@@ -675,7 +683,7 @@
 
     applyCollapse(isCollapsed);
     document.body.appendChild(wrap);
-    enableDrag(wrap, header);
+    enableDrag(wrap, header, fab);
   }
 
   // ━━━ INIT ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -683,7 +691,7 @@
 
   setTimeout(() => {
     mountUI();
-    toast("AI Chat Archiver active");
+    toast("ChatStash active");
   }, 2000);
 
   setInterval(async () => {

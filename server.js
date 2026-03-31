@@ -297,8 +297,8 @@ app.post('/api/auth/register', async (req, res) => {
 
     await sendEmail({
       to: emailNorm,
-      subject: 'Your AI Chats verification code',
-      text: `Your verification code is: ${code}\n\nThis code expires in 15 minutes.\n\nIf you did not register for AI Chats, ignore this email.`,
+      subject: 'Your ChatStash verification code',
+      text: `Your verification code is: ${code}\n\nThis code expires in 15 minutes.\n\nIf you did not register for ChatStash, ignore this email.`,
     });
     res.json({ ok: true });
   } catch {
@@ -348,7 +348,7 @@ app.post('/api/auth/resend-verification', async (req, res) => {
   const code = generateVerificationCode();
   pendingVerifications.set(emailNorm, { ...pending, code, expires: Date.now() + VERIFICATION_TTL_MS });
   try {
-    await sendEmail({ to: emailNorm, subject: 'Your AI Chats verification code', text: `Your new verification code is: ${code}\n\nThis code expires in 15 minutes.` });
+    await sendEmail({ to: emailNorm, subject: 'Your ChatStash verification code', text: `Your new verification code is: ${code}\n\nThis code expires in 15 minutes.` });
   } catch {}
 });
 
@@ -364,7 +364,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     const token = generateResetToken();
     passwordResetTokens.set(token, { email: emailNorm, userId: user.id, expires: Date.now() + RESET_TTL_MS });
     await sendEmail({
-      to: emailNorm, subject: 'Reset your AI Chats password',
+      to: emailNorm, subject: 'Reset your ChatStash password',
       text: `Click the link below to reset your password. This link expires in 1 hour.\n\n${APP_URL}/?reset=${token}\n\nIf you did not request this, ignore this email.`,
     });
   } catch {}
@@ -776,7 +776,7 @@ app.get('*', (_req, res) => res.sendFile(path.join(process.cwd(), 'app', 'index.
 db.migrate()
   .then(() => seedAdmin())
   .then(() => {
-    app.listen(PORT, () => console.log(`AI Chats server running on port ${PORT}`));
+    app.listen(PORT, () => console.log(`ChatStash server running on port ${PORT}`));
   })
   .catch((error) => {
     console.error('Failed to start:', error);
