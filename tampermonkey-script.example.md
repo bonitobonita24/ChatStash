@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         ChatPileAI
-// @namespace    chatpileai
+// @name         ChatPile App
+// @namespace    chatpile
 // @version      5.0.0
-// @description  Auto-save AI conversations with images and files to your ChatPileAI dashboard
+// @description  Auto-save AI conversations with images and files to your ChatPile App dashboard
 // @match        https://chat.openai.com/*
 // @match        https://chatgpt.com/*
 // @match        https://claude.ai/*
@@ -27,13 +27,13 @@
   "use strict";
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // CONFIG — Change this to your ChatPileAI URL
+  // CONFIG — Change this to your ChatPile App URL
   //
-  // If you self-host: use your domain (e.g. "https://chatpileai.example.com")
+  // If you self-host: use your domain (e.g. "https://chatpile.example.com")
   // The API key is set via the "Set API Key" button in the panel
   // (get it from your dashboard → Settings → Tampermonkey API Key)
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  const API_URL = "https://chatpileai.yourdomain.com";
+  const API_URL = "https://chatpile.yourdomain.com";
   const AUTOSAVE_MS = 1 * 60 * 1000;
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB per file
 
@@ -566,7 +566,7 @@
     if (!document.body) return;
 
     const platform = detectPlatform();
-    const label = "ChatPileAI";
+    const label = "ChatPile App";
     const isCollapsed = GM_getValue(K_COLLAPSED, true); // collapsed (small) by default
     const savedPos = GM_getValue(K_PANEL_POS, null);
     const pos = savedPos ? JSON.parse(savedPos) : null;
@@ -691,7 +691,7 @@
 
   setTimeout(() => {
     mountUI();
-    toast("ChatPileAI active");
+    toast("ChatPile App active");
   }, 2000);
 
   setInterval(async () => {

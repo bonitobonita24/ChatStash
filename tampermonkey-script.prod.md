@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         ChatPileAI
-// @namespace    chatpileai
+// @name         ChatPile App
+// @namespace    chatpile
 // @version      5.0.0
-// @description  Auto-save AI conversations with images and files to your ChatPileAI dashboard
+// @description  Auto-save AI conversations with images and files to your ChatPile App dashboard
 // @match        https://chat.openai.com/*
 // @match        https://chatgpt.com/*
 // @match        https://claude.ai/*
@@ -27,7 +27,7 @@
   "use strict";
 
   // ━━━ CONFIG ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  const API_URL = "https://chatpileai.powerbyte.app";
+  const API_URL = "https://chatpile.powerbyte.app";
   const AUTOSAVE_MS = 1 * 60 * 1000;
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB per file
 
@@ -606,7 +606,7 @@
     if (!document.body) return;
 
     const platform = detectPlatform();
-    const label = "ChatPileAI";
+    const label = "ChatPile App";
     const isCollapsed = GM_getValue(K_COLLAPSED, true); // collapsed (small) by default
     const savedPos = GM_getValue(K_PANEL_POS, null);
     const pos = savedPos ? JSON.parse(savedPos) : null;
@@ -731,7 +731,7 @@
 
   setTimeout(() => {
     mountUI();
-    toast("ChatPileAI active");
+    toast("ChatPile App active");
   }, 2000);
 
   setInterval(async () => {

@@ -33,7 +33,7 @@ jobs:
           context: .
           target: production
           push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/chatpileai:latest
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/chatpile:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

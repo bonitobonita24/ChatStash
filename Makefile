@@ -1,6 +1,6 @@
 # Load local overrides (gitignored)
 -include Makefile.local
-IMAGE ?= your-dockerhub-username/chatpileai
+IMAGE ?= your-dockerhub-username/chatpile
 
 .PHONY: dev dev-down dev-logs dev-restart release setup test
 

@@ -1,4 +1,4 @@
-# Multi-stage build for ChatPileAI
+# Multi-stage build for ChatPile App
 
 # Stage 1: Builder
 FROM node:18-alpine AS builder

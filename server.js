@@ -123,7 +123,7 @@ app.post('/api/webhook/xendit', express.json({ limit: '1mb' }), async (req, res)
 
 app.use(express.json({ limit: '50mb' }));
 app.use(session({
-  name: 'chatpileai_sid',
+  name: 'chatpile_sid',
   secret: SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
@@ -299,7 +299,7 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 app.post('/api/auth/logout', (req, res) => {
-  req.session.destroy(() => { res.clearCookie('chatpileai_sid'); res.json({ ok: true }); });
+  req.session.destroy(() => { res.clearCookie('chatpile_sid'); res.json({ ok: true }); });
 });
 
 app.post('/api/auth/register', async (req, res) => {
@@ -327,8 +327,8 @@ app.post('/api/auth/register', async (req, res) => {
 
     await sendEmail({
       to: emailNorm,
-      subject: 'Your ChatPileAI verification code',
-      text: `Your verification code is: ${code}\n\nThis code expires in 15 minutes.\n\nIf you did not register for ChatPileAI, ignore this email.`,
+      subject: 'Your ChatPile App verification code',
+      text: `Your verification code is: ${code}\n\nThis code expires in 15 minutes.\n\nIf you did not register for ChatPile App, ignore this email.`,
     });
     res.json({ ok: true });
   } catch {
@@ -384,7 +384,7 @@ app.post('/api/auth/resend-verification', async (req, res) => {
   const code = generateVerificationCode();
   await db.setPendingVerification(emailNorm, { code, username: pending.username, salt: pending.salt, hash: pending.hash, expiresAt: Date.now() + VERIFICATION_TTL_MS });
   try {
-    await sendEmail({ to: emailNorm, subject: 'Your ChatPileAI verification code', text: `Your new verification code is: ${code}\n\nThis code expires in 15 minutes.` });
+    await sendEmail({ to: emailNorm, subject: 'Your ChatPile App verification code', text: `Your new verification code is: ${code}\n\nThis code expires in 15 minutes.` });
   } catch {}
 });
 
@@ -400,7 +400,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     const token = generateResetToken();
     await db.setPasswordResetToken(token, { email: emailNorm, userId: user.id, expiresAt: Date.now() + RESET_TTL_MS });
     await sendEmail({
-      to: emailNorm, subject: 'Reset your ChatPileAI password',
+      to: emailNorm, subject: 'Reset your ChatPile App password',
       text: `Click the link below to reset your password. This link expires in 1 hour.\n\n${APP_URL}/?reset=${token}\n\nIf you did not request this, ignore this email.`,
     });
   } catch {}
@@ -811,7 +811,7 @@ app.get('*', (_req, res) => res.sendFile(path.join(process.cwd(), 'app', 'index.
 db.migrate()
   .then(() => seedAdmin())
   .then(() => {
-    app.listen(PORT, () => console.log(`ChatPileAI server running on port ${PORT}`));
+    app.listen(PORT, () => console.log(`ChatPile App server running on port ${PORT}`));
   })
   .catch((error) => {
     console.error('Failed to start:', error);

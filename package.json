@@ -1,7 +1,7 @@
 {
-  "name": "chatpileai",
+  "name": "chatpile",
   "version": "1.0.0",
-  "description": "ChatPileAI — Pile up your AI conversations",
+  "description": "ChatPile App — Pile up your AI conversations",
   "scripts": {
     "start": "node server.js",
     "dev": "PORT=4173 node server.js",

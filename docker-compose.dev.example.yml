@@ -5,15 +5,15 @@
 services:
   db:
     image: postgres:16-alpine
-    container_name: chatpileai-dev-db
+    container_name: chatpile-dev-db
     environment:
       POSTGRES_DB: aichats
       POSTGRES_USER: aichats
       POSTGRES_PASSWORD: aichats_dev
     volumes:
-      - chatpileai-dev-pgdata:/var/lib/postgresql/data
+      - chatpile-dev-pgdata:/var/lib/postgresql/data
     networks:
-      - chatpileai-dev-net
+      - chatpile-dev-net
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U aichats"]
@@ -27,7 +27,7 @@ services:
       dockerfile: Dockerfile
       target: development
 
-    container_name: chatpileai-dev
+    container_name: chatpile-dev
 
     ports:
       - "4287:4173"
@@ -46,7 +46,7 @@ services:
       - ./db.js:/app/db.js
 
     networks:
-      - chatpileai-dev-net
+      - chatpile-dev-net
 
     depends_on:
       db:
@@ -68,9 +68,9 @@ services:
         max-file: "3"
 
 volumes:
-  chatpileai-dev-pgdata:
-    name: chatpileai-dev-pgdata
+  chatpile-dev-pgdata:
+    name: chatpile-dev-pgdata
 
 networks:
-  chatpileai-dev-net:
-    name: chatpileai-dev-net
+  chatpile-dev-net:
+    name: chatpile-dev-net
