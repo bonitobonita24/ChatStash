@@ -1,6 +1,25 @@
 # Staging Docker Compose (Komodo / Traefik) — uses Xendit TEST mode
 # Copy to docker-compose.staging.yml and set env vars in Komodo
 # Create a separate Komodo stack pointing to this file
+#
+# Required environment variables (set in Komodo Environment section):
+#   SESSION_SECRET        — random 64+ char string
+#   PG_PASSWORD           — strong PostgreSQL password
+#   COOKIE_DOMAIN         — your staging domain (e.g. chatpile-staging.example.com)
+#   APP_ADMIN_USERNAME    — initial admin username
+#   APP_ADMIN_EMAIL       — initial admin email
+#   APP_ADMIN_PASSWORD    — initial admin password
+#   APP_URL               — full URL (e.g. https://chatpile-staging.example.com)
+#   DOCKER_IMAGE          — Docker Hub image (e.g. youruser/chatpile:latest)
+#   S3_ACCESS_KEY         — S3/MinIO access key
+#   S3_SECRET_KEY         — S3/MinIO secret key
+#
+# Optional:
+#   PG_USER               — PostgreSQL user (default: aichats)
+#   S3_BUCKET             — S3 bucket name (default: aichats)
+#   SMTP_HOST/PORT/USER/PASS/FROM — for email verification & password reset
+#   XENDIT_SECRET_KEY     — Xendit TEST API key (for subscription testing)
+#   XENDIT_CALLBACK_TOKEN — Xendit webhook verification token
 
 services:
   db:
