@@ -435,12 +435,15 @@ const API_URL = "https://chatpile.yourdomain.com";
         <div class="panel-header">
           <div class="panel-tabs" id="rightPanelTabs">
             <button class="panel-tab active" data-tab="code">Code</button>
+            <button class="panel-tab" data-tab="files">Files</button>
             <button class="panel-tab" data-tab="bookmarks">Bookmarks</button>
           </div>
           <input id="codeSearch" type="search" placeholder="Filter code snippets..." aria-label="Filter code snippets" />
+          <input id="filesSearch" type="search" placeholder="Search files..." aria-label="Search files" hidden />
           <input id="bookmarkSearch" type="search" placeholder="Search bookmarks..." aria-label="Search bookmarks" hidden />
         </div>
         <ul id="codeList" class="code-list"></ul>
+        <ul id="filesList" class="files-list" hidden></ul>
         <ul id="bookmarkList" class="bookmark-list" hidden></ul>
       </aside>
     </main>

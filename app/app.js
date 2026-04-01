@@ -19,6 +19,7 @@ const state = {
   appInitialized: false,
   activeRightTab: 'code',
   bookmarkQuery: '',
+  filesQuery: '',
   pendingEmail: null,
   pendingResetToken: null,
   _loadRequestId: 0,
@@ -44,8 +45,10 @@ const els = {
   codeList: document.querySelector('#codeList'),
   codeSearch: document.querySelector('#codeSearch'),
   bookmarkSearch: document.querySelector('#bookmarkSearch'),
+  filesSearch: document.querySelector('#filesSearch'),
   rightPanelTabs: document.querySelector('#rightPanelTabs'),
   bookmarkList: document.querySelector('#bookmarkList'),
+  filesList: document.querySelector('#filesList'),
   stats: document.querySelector('#stats'),
   // Login
   loginOverlay: document.querySelector('#loginOverlay'),
@@ -208,6 +211,7 @@ async function unlockAndInitApp() {
   renderStats();
   renderConversationList();
   renderCodeList();
+  renderFilesList();
   renderBookmarkList();
   bindEvents();
   state.appInitialized = true;
@@ -970,6 +974,11 @@ function bindEvents() {
     renderBookmarkList();
   });
 
+  els.filesSearch.addEventListener('input', (event) => {
+    state.filesQuery = event.target.value.trim().toLowerCase();
+    renderFilesList();
+  });
+
   // Right panel tab switching (Code / Bookmarks)
   els.rightPanelTabs.addEventListener('click', (e) => {
     const tab = e.target.closest('.panel-tab');
@@ -1015,11 +1024,12 @@ function bindEvents() {
 function switchRightTab(tabName) {
   state.activeRightTab = tabName;
   els.rightPanelTabs.querySelectorAll('.panel-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tabName));
-  const isCode = tabName === 'code';
-  els.codeSearch.hidden = !isCode;
-  els.bookmarkSearch.hidden = isCode;
-  els.codeList.hidden = !isCode;
-  els.bookmarkList.hidden = isCode;
+  els.codeSearch.hidden = tabName !== 'code';
+  els.filesSearch.hidden = tabName !== 'files';
+  els.bookmarkSearch.hidden = tabName !== 'bookmarks';
+  els.codeList.hidden = tabName !== 'code';
+  els.filesList.hidden = tabName !== 'files';
+  els.bookmarkList.hidden = tabName !== 'bookmarks';
 }
 
 function updateBookmarkTabCount() {
@@ -1094,6 +1104,7 @@ function applyConversationFilter() {
     renderConversationList();
     renderChat();
     renderCodeList();
+    renderFilesList();
     renderBookmarkList();
   }, 300);
 }
@@ -1145,6 +1156,7 @@ function renderConversationList() {
       }
       renderChat();
       renderCodeList();
+      renderFilesList();
       renderBookmarkList();
     });
 
@@ -1481,6 +1493,107 @@ function renderBookmarkList() {
   });
 
   updateBookmarkTabCount();
+}
+
+function renderFilesList() {
+  els.filesList.innerHTML = '';
+  const conversationId = state.selectedConversationId;
+  const userTier = state.dataset?.stats?.tier || 'free';
+
+  if (!conversationId) {
+    els.filesList.innerHTML = '<li class="empty-state">Select a conversation to view its files.</li>';
+    updateFilesTabCount();
+    return;
+  }
+
+  // Free tier: show upgrade prompt
+  if (userTier === 'free') {
+    els.filesList.innerHTML = `
+      <li class="empty-state files-upgrade-prompt">
+        <div class="files-upgrade-icon">📁</div>
+        <h4>File & Media Storage</h4>
+        <p>Upgrade to Premium to save images, documents, audio, and other file attachments from your AI conversations.</p>
+        <p class="meta">Once subscribed, the Tampermonkey script will automatically capture and save files alongside your conversations.</p>
+        <button class="hero-btn primary files-upgrade-btn" style="font-size:0.82rem;padding:0.5rem 1rem;margin-top:0.5rem;">Upgrade to Premium — $2/mo</button>
+      </li>`;
+    els.filesList.querySelector('.files-upgrade-btn')?.addEventListener('click', () => {
+      els.settingsBtn.click();
+    });
+    updateFilesTabCount();
+    return;
+  }
+
+  const conversation = state.dataset.conversations.find((c) => c.id === conversationId);
+  const attachments = conversation?.attachments || [];
+
+  if (!attachments.length) {
+    els.filesList.innerHTML = '<li class="empty-state">No files in this conversation.</li>';
+    updateFilesTabCount();
+    return;
+  }
+
+  const query = state.filesQuery;
+  const filtered = query
+    ? attachments.filter((a) => {
+        const haystack = `${a.fileName ?? ''} ${a.fileCategory ?? ''} ${a.fileType ?? ''}`.toLowerCase();
+        return haystack.includes(query);
+      })
+    : attachments;
+
+  if (!filtered.length) {
+    els.filesList.innerHTML = `<li class="empty-state">No files match "${escapeHtml(query)}".</li>`;
+    updateFilesTabCount();
+    return;
+  }
+
+  filtered.forEach((att) => {
+    const li = document.createElement('li');
+    const sizeKb = att.fileSize ? Math.round(att.fileSize / 1024) : 0;
+    const sizeLabel = sizeKb >= 1024 ? `${(sizeKb / 1024).toFixed(1)} MB` : `${sizeKb} KB`;
+    const categoryIcon = getFileCategoryIcon(att.fileCategory || att.fileType);
+    const targetId = `message-${att.messageIndex}`;
+
+    li.innerHTML = `
+      <div class="file-item-row">
+        <span class="file-icon">${categoryIcon}</span>
+        <div class="file-info">
+          <span class="file-name">${escapeHtml(att.fileName)}</span>
+          <span class="meta">${escapeHtml(att.fileCategory || '')} · ${sizeLabel}</span>
+        </div>
+      </div>
+    `;
+
+    li.addEventListener('click', () => {
+      const target = document.getElementById(targetId);
+      if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        target.style.outline = '2px solid var(--accent)';
+        setTimeout(() => { target.style.outline = 'none'; }, 1200);
+      }
+    });
+
+    els.filesList.appendChild(li);
+  });
+
+  updateFilesTabCount();
+}
+
+function getFileCategoryIcon(category) {
+  if (!category) return '📎';
+  const c = category.toLowerCase();
+  if (c === 'image' || c.startsWith('image/')) return '🖼️';
+  if (c === 'audio' || c.startsWith('audio/')) return '🎵';
+  if (c === 'video' || c.startsWith('video/')) return '🎬';
+  if (c === 'document') return '📄';
+  if (c === 'text' || c.startsWith('text/')) return '📝';
+  return '📎';
+}
+
+function updateFilesTabCount() {
+  const conversation = state.dataset?.conversations?.find((c) => c.id === state.selectedConversationId);
+  const count = (conversation?.attachments || []).length;
+  const tab = els.rightPanelTabs.querySelector('[data-tab="files"]');
+  if (tab) tab.textContent = count > 0 ? `Files (${count})` : 'Files';
 }
 
 function renderMessageAttachments(messageIndex) {

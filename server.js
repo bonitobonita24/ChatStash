@@ -677,6 +677,36 @@ app.post('/api/conversations', async (req, res) => {
     res.status(400).json({ ok: false, error: 'Missing required fields: id, title, messages[].' }); return;
   }
 
+  // Resolve live account state (handles lazy subscription expiry)
+  const account = await db.getUserAccount(user.id);
+  const isFreeTier = !account || account.tier === 'free';
+  const hasActiveSubscription = account && account.subscription_status === 'active';
+  const hasAttachments = Array.isArray(attachments) && attachments.length > 0;
+
+  // Strict tier gate: reject all file uploads for free-tier API keys upfront
+  if (hasAttachments && isFreeTier) {
+    // Still save the conversation text, but refuse all files
+    try {
+      const result = await db.upsertConversation({
+        userId: user.id, id, title,
+        platform: platform || 'unknown',
+        url: url || null,
+        captured: captured || new Date().toISOString(),
+        messages,
+      });
+      res.json({
+        ok: true, ...result,
+        savedAttachments: 0,
+        filesRejected: true,
+        filesRejectedReason: 'File and media uploads require a Premium subscription. Upgrade in Settings to start saving attachments.',
+      });
+    } catch (e) {
+      console.error('Upsert error:', e.message);
+      res.status(500).json({ ok: false, error: 'Failed to save conversation.' });
+    }
+    return;
+  }
+
   try {
     const result = await db.upsertConversation({
       userId: user.id, id, title,
@@ -686,27 +716,22 @@ app.post('/api/conversations', async (req, res) => {
       messages,
     });
 
-    // Process attachments if present
+    // Process attachments (only for premium users with active subscriptions)
     let savedAttachments = 0;
     const skippedAttachments = [];
     let addedBytes = 0;
 
-    if (Array.isArray(attachments) && attachments.length > 0) {
+    if (hasAttachments && hasActiveSubscription) {
+      // Fetch current storage usage for accurate quota check
+      const storageLimit = Number(account.storage_limit_bytes) || 0;
+      const storageUsed = Number(account.storage_used_bytes) || 0;
+
       for (const att of attachments) {
         if (!att.fileName || !att.mimeType || !att.data) continue;
 
-        // Tier enforcement: free users can only upload text files
-        if (user.tier === 'free' && !storage.isFreeAllowed(att.mimeType)) {
-          skippedAttachments.push({ fileName: att.fileName, reason: 'free_tier' });
-          continue;
-        }
-
         // Storage quota check (tracks bytes added in this request to avoid stale data)
-        // Note: pg returns BIGINT as strings, so cast to Number for comparison
-        const storageLimit = Number(user.storage_limit_bytes) || 0;
-        const storageUsed = Number(user.storage_used_bytes) || 0;
         const estimatedSize = Buffer.byteLength(att.data, 'base64');
-        if (storageUsed + addedBytes + estimatedSize > storageLimit) {
+        if (storageLimit > 0 && storageUsed + addedBytes + estimatedSize > storageLimit) {
           skippedAttachments.push({ fileName: att.fileName, reason: 'quota_exceeded' });
           continue;
         }
@@ -729,14 +754,23 @@ app.post('/api/conversations', async (req, res) => {
         addedBytes += fileSize;
         savedAttachments++;
       }
+    } else if (hasAttachments && !hasActiveSubscription) {
+      // Premium user but subscription lapsed (cancelled/past_due/pending)
+      skippedAttachments.push(...attachments
+        .filter(a => a.fileName)
+        .map(a => ({ fileName: a.fileName, reason: 'subscription_inactive' })));
     }
 
     const response = { ok: true, ...result, savedAttachments };
     if (skippedAttachments.length > 0) {
       response.skippedAttachments = skippedAttachments;
       const quotaSkipped = skippedAttachments.filter(s => s.reason === 'quota_exceeded');
+      const inactiveSkipped = skippedAttachments.filter(s => s.reason === 'subscription_inactive');
       if (quotaSkipped.length > 0) {
         response.quotaWarning = `${quotaSkipped.length} file(s) skipped — storage quota exceeded. Upgrade your storage in Settings.`;
+      }
+      if (inactiveSkipped.length > 0) {
+        response.subscriptionWarning = `${inactiveSkipped.length} file(s) skipped — subscription is not active. Reactivate in Settings to resume saving files.`;
       }
     }
     res.json(response);

@@ -547,6 +547,65 @@ h1 { margin: 0; font-size: 1.4rem; display: flex; align-items: center; gap: 0.45
   text-align: center;
   list-style: none;
 }
+
+/* Files list */
+.files-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.5rem;
+  overflow: auto;
+}
+.files-list li {
+  border: 1px solid #2d3750;
+  border-radius: 10px;
+  margin-bottom: 0.5rem;
+  padding: 0.55rem;
+  cursor: pointer;
+  background: #1a2130;
+}
+.files-list li:hover {
+  border-color: var(--accent);
+}
+.file-item-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.file-icon {
+  font-size: 1.3rem;
+  flex-shrink: 0;
+  width: 1.6rem;
+  text-align: center;
+}
+.file-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.file-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.files-upgrade-prompt {
+  padding: 1.5rem 1rem;
+}
+.files-upgrade-prompt h4 {
+  margin: 0.5rem 0 0.3rem;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+.files-upgrade-prompt p {
+  margin: 0.3rem 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+.files-upgrade-icon {
+  font-size: 2rem;
+}
 .bookmark-flash {
   outline: 2px solid #f9a853 !important;
   box-shadow: 0 0 0 3px rgba(249, 168, 83, 0.18) !important;
