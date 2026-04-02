@@ -274,12 +274,18 @@
 
   async function extractImagesFromElement(el) {
     const attachments = [];
+    const seenSrcs = new Set(); // deduplicate by source URL
     const images = el.querySelectorAll("img");
 
     for (const img of images) {
       if (isSmallIcon(img)) continue;
       const src = img.src || img.getAttribute("src") || "";
       if (!src) continue;
+
+      // Deduplicate: normalize URL and skip if already seen
+      const normSrc = src.startsWith("data:") ? src.slice(0, 100) : src.split("?")[0];
+      if (seenSrcs.has(normSrc)) continue;
+      seenSrcs.add(normSrc);
 
       let result = null;
       if (src.startsWith("data:")) {
@@ -289,6 +295,11 @@
       }
 
       if (result) {
+        // Deduplicate by content: skip if we already have identical data
+        const dataKey = result.data.slice(0, 200);
+        if (seenSrcs.has("data:" + dataKey)) continue;
+        seenSrcs.add("data:" + dataKey);
+
         const ext = result.mimeType.split("/")[1]?.split("+")[0] || "png";
         attachments.push({
           fileName: `image_${attachments.length + 1}.${ext}`,
@@ -388,22 +399,14 @@
     return null;
   }
 
-  function fetchJson(path) {
-    return new Promise((resolve) => {
+  async function fetchJson(path) {
+    // Use native fetch (not GM_xmlhttpRequest) so session cookies are sent
+    try {
       const url = path.startsWith("http") ? path : `${location.origin}${path}`;
-      GM_xmlhttpRequest({
-        method: "GET", url,
-        headers: { "Content-Type": "application/json" },
-        timeout: 10000,
-        onload: (res) => {
-          if (res.status < 300) {
-            try { resolve(JSON.parse(res.responseText)); } catch { resolve(null); }
-          } else { resolve(null); }
-        },
-        onerror: () => resolve(null),
-        ontimeout: () => resolve(null),
-      });
-    });
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) return null;
+      return await res.json();
+    } catch { return null; }
   }
 
   // ━━━ TEXT + FILE EXTRACTION PER PLATFORM ━━━━━━━━━
